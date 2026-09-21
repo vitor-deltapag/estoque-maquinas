@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: backend-check
+        name: pytest e bandit
+        entry: powershell -NoProfile -ExecutionPolicy Bypass -File backend/check.ps1
+        language: system
+        pass_filenames: false
+        files: ^backend/

@@ -1,0 +1,773 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "API - Estoque Delta",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "Read Root",
+        "operationId": "read_root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/adquirentes": {
+      "get": {
+        "summary": "Listar Adquirentes",
+        "operationId": "listar_adquirentes_adquirentes_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdquirenteResponse"
+                  },
+                  "type": "array",
+                  "title": "Response Listar Adquirentes Adquirentes Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Criar Adquirente",
+        "operationId": "criar_adquirente_adquirentes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdquirenteCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdquirenteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/fornecedores": {
+      "get": {
+        "summary": "Listar Fornecedores",
+        "operationId": "listar_fornecedores_fornecedores_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FornecedorResponse"
+                  },
+                  "type": "array",
+                  "title": "Response Listar Fornecedores Fornecedores Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Criar Fornecedor",
+        "operationId": "criar_fornecedor_fornecedores_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FornecedorCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FornecedorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/clientes": {
+      "get": {
+        "summary": "Listar Clientes",
+        "operationId": "listar_clientes_clientes_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ClienteResponse"
+                  },
+                  "type": "array",
+                  "title": "Response Listar Clientes Clientes Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Criar Cliente",
+        "operationId": "criar_cliente_clientes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClienteCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClienteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dispositivos": {
+      "get": {
+        "summary": "Listar Dispositivos",
+        "operationId": "listar_dispositivos_dispositivos_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DispositivoResponse"
+                  },
+                  "type": "array",
+                  "title": "Response Listar Dispositivos Dispositivos Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Criar Dispositivo",
+        "operationId": "criar_dispositivo_dispositivos_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DispositivoCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DispositivoResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AdquirenteCreate": {
+        "properties": {
+          "nome": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Nome",
+            "description": "Nome da adquirente"
+          },
+          "status": {
+            "type": "boolean",
+            "title": "Status",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "nome"
+        ],
+        "title": "AdquirenteCreate"
+      },
+      "AdquirenteResponse": {
+        "properties": {
+          "nome": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Nome",
+            "description": "Nome da adquirente"
+          },
+          "status": {
+            "type": "boolean",
+            "title": "Status",
+            "default": true
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nome",
+          "id",
+          "created_at"
+        ],
+        "title": "AdquirenteResponse"
+      },
+      "ClienteCreate": {
+        "properties": {
+          "nome": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Nome"
+          },
+          "nome_fantasia": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nome Fantasia"
+          },
+          "status": {
+            "type": "string",
+            "maxLength": 50,
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nome",
+          "status"
+        ],
+        "title": "ClienteCreate"
+      },
+      "ClienteResponse": {
+        "properties": {
+          "nome": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Nome"
+          },
+          "nome_fantasia": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nome Fantasia"
+          },
+          "status": {
+            "type": "string",
+            "maxLength": 50,
+            "title": "Status"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nome",
+          "status",
+          "id",
+          "created_at"
+        ],
+        "title": "ClienteResponse"
+      },
+      "DispositivoCreate": {
+        "properties": {
+          "captura": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TipoCaptura"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "estado": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TipoEstado"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "finalidade": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TipoFinalidade"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "valor_aluguel": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,8}|(?=[\\d.]{1,11}0*$)\\d{0,8}\\.\\d{0,2}0*$)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor Aluguel"
+          },
+          "fornecedor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fornecedor"
+          },
+          "cliente": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cliente"
+          },
+          "adquirente_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adquirente Id"
+          },
+          "data_chegada": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Chegada"
+          },
+          "data_ultima_atualizacao": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Ultima Atualizacao"
+          }
+        },
+        "type": "object",
+        "title": "DispositivoCreate"
+      },
+      "DispositivoResponse": {
+        "properties": {
+          "captura": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TipoCaptura"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "estado": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TipoEstado"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "finalidade": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TipoFinalidade"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "valor_aluguel": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,8}|(?=[\\d.]{1,11}0*$)\\d{0,8}\\.\\d{0,2}0*$)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor Aluguel"
+          },
+          "fornecedor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fornecedor"
+          },
+          "cliente": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cliente"
+          },
+          "adquirente_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adquirente Id"
+          },
+          "data_chegada": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Chegada"
+          },
+          "data_ultima_atualizacao": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Ultima Atualizacao"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "fornecedor_rel": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FornecedorResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cliente_rel": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClienteResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "adquirente": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdquirenteResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "DispositivoResponse"
+      },
+      "FornecedorCreate": {
+        "properties": {
+          "nome": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Nome"
+          },
+          "status": {
+            "type": "string",
+            "maxLength": 50,
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nome",
+          "status"
+        ],
+        "title": "FornecedorCreate"
+      },
+      "FornecedorResponse": {
+        "properties": {
+          "nome": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Nome"
+          },
+          "status": {
+            "type": "string",
+            "maxLength": 50,
+            "title": "Status"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nome",
+          "status",
+          "id",
+          "created_at"
+        ],
+        "title": "FornecedorResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "TipoCaptura": {
+        "type": "string",
+        "enum": [
+          "39",
+          "SOFTWARE EXPRESS",
+          "BEMPAGGO",
+          "PHOEBUS PIX",
+          "PHOEBUS"
+        ],
+        "title": "TipoCaptura"
+      },
+      "TipoEstado": {
+        "type": "string",
+        "enum": [
+          "NO CLIENTE",
+          "ESTOQUE",
+          "REPARO",
+          "MAQUINA PERDIDA"
+        ],
+        "title": "TipoEstado"
+      },
+      "TipoFinalidade": {
+        "type": "string",
+        "enum": [
+          "ALUGUEL/MENSAL",
+          "VENDA",
+          "BONIFICAÇÃO",
+          "PRÓPRIO",
+          "COMODATO"
+        ],
+        "title": "TipoFinalidade"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

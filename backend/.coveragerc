@@ -1,0 +1,18 @@
+[run]
+branch = True
+source = .
+omit =
+    .venv/*
+    tests/*
+    alembic/*
+    migrate.py
+    check.ps1
+    reset_pass.py
+    exportar_openapi.py
+    importar_excel.py
+
+[report]
+show_missing = True
+skip_empty = True
+exclude_lines =
+    pragma: no cover
