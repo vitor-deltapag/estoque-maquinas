@@ -12,6 +12,7 @@ from helpers import empty_to_none
 from log import logger
 import models
 import schemas
+from movimentacoes import registrar
 
 router = APIRouter(tags=["eventos"])
 
@@ -133,6 +134,14 @@ def criar_evento(
         for maquina in maquinas:
             maquina.em_evento = True
             maquina.evento_id = novo.id
+        for maquina in maquinas:
+            registrar(
+                db,
+                tipo="ENTRADA_EVENTO",
+                dispositivo=maquina,
+                cliente_id=novo.cliente_id,
+                evento_id=novo.id,
+            )
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -172,6 +181,13 @@ def finalizar_evento(
     item.status = "FINALIZADO"
     item.data_finalizacao = datetime.now()
     for maquina in item.dispositivos:
+        registrar(
+            db,
+            tipo="SAIDA_EVENTO",
+            dispositivo=maquina,
+            cliente_id=item.cliente_id,
+            evento_id=item.id,
+        )
         maquina.em_evento = False
         maquina.evento_id = None
     db.commit()

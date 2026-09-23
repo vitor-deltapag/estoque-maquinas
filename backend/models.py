@@ -186,8 +186,8 @@ class MovimentacaoMaquina(Base):
     dispositivo_id = Column(Integer, ForeignKey("dispositivos.id", ondelete="SET NULL"), nullable=True)
     cliente_id = Column(Integer, ForeignKey("cliente.id", ondelete="SET NULL"), nullable=True)
     evento_id = Column(Integer, ForeignKey("evento.id", ondelete="SET NULL"), nullable=True)
-    numero_serial = Column(String(15), nullable=False)
-    modelo = Column(String(15), nullable=False)
+    numero_serial = Column(String(100), nullable=False)
+    modelo = Column(String(50), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
 
     __table_args__ = (

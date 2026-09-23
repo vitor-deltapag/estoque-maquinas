@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_, func
 from typing import List, Optional
+from movimentacoes import registrar
 
 from database import get_db
 from deps import get_current_user
@@ -220,9 +221,9 @@ def criar_dispositivo(dispositivo: schemas.DispositivoCreate, db: Session = Depe
 
     try:
         db.add(novo_dispositivo)
+        db.flush()
+        registrar(db, tipo="VINCULO_CLIENTE", dispositivo=novo_dispositivo, cliente_id=cliente_id)
         db.commit()
-        db.refresh(novo_dispositivo)
-
         return _dispositivo_por_id(db, novo_dispositivo.id)
 
     except IntegrityError:
@@ -279,6 +280,9 @@ def criar_dispositivos_lote(
     ]
     try:
         db.add_all(novos)
+        db.flush()
+        for dispositivo in novos:
+            registrar(db, tipo="VINCULO_CLIENTE", dispositivo=dispositivo, cliente_id=cliente_id)
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -369,14 +373,19 @@ def atualizar_dispositivo(item_id: int, dispositivo: schemas.DispositivoCreate, 
         item.aquisicao = aquisicao
     item.data_ultima_atualizacao = datetime.now()
 
+    cliente_anterior = item.cliente
     mid_informado = dados_entrada.get("mid")
+    novo_cliente_id = None
     if mid_informado:
         cliente_encontrado = db.query(models.Cliente).filter(models.Cliente.mid == mid_informado).first()
         if not cliente_encontrado:
             raise HTTPException(status_code=400, detail=f"O MID '{mid_informado}' não existe.")
-        item.cliente = cliente_encontrado.id
-    else:
-        item.cliente = None
+        novo_cliente_id = cliente_encontrado.id
+
+    if cliente_anterior != novo_cliente_id:
+        registrar(db, tipo="DESVINCULO_CLIENTE", dispositivo=item, cliente_id=cliente_anterior)
+        registrar(db, tipo="VINCULO_CLIENTE", dispositivo=item, cliente_id=novo_cliente_id)
+    item.cliente = novo_cliente_id
 
     nome_forn = dados_entrada.get("fornecedor_nome")
     if nome_forn:
@@ -408,6 +417,7 @@ def deletar_dispositivo(item_id: int, db: Session = Depends(get_db), user: model
     item = db.query(models.Dispositivo).filter(models.Dispositivo.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Dispositivo não encontrado")
+    registrar(db, tipo="DESVINCULO_CLIENTE", dispositivo=item, cliente_id=item.cliente)
     db.delete(item)
     db.commit()
     return
