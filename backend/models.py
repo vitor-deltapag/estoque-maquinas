@@ -177,3 +177,22 @@ class DadosUsuario(Base):
             name="ck_usuario_email_nao_vazio",
         ),
     )
+
+class MovimentacaoMaquina(Base):
+    __tablename__ = "movimentacao_maquina"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tipo = Column(String(30), nullable=False)
+    dispositivo_id = Column(Integer, ForeignKey("dispositivos.id", ondelete="SET NULL"), nullable=True)
+    cliente_id = Column(Integer, ForeignKey("cliente.id", ondelete="SET NULL"), nullable=True)
+    evento_id = Column(Integer, ForeignKey("evento.id", ondelete="SET NULL"), nullable=True)
+    numero_serial = Column(String(15), nullable=False)
+    modelo = Column(String(15), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint(
+            "tipo IN ('VINCULO_CLIENTE', 'DESVINCULO_CLIENTE', 'ENTRADA_EVENTO', 'SAIDA_EVENTO')",
+            name="ck_movimentacao_tipo",
+        ),
+    )

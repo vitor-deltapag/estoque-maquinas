@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "../../lib/api";
 import { useMensagem } from "../../components/ToastErro";
-import { classeCorModelo } from "../../lib/modeloSerial";
+import { classeCorModelo, classeMostradorEstado, classeMostradorModelo, modeloPorSerial, rotuloEstado } from "../../lib/modeloSerial";
 import { classeCorAquisicao, OPCOES_AQUISICAO, rotuloAquisicao } from "../../lib/aquisicao";
 import { filtrosDaUrl, queryFiltros } from "../../lib/filtroDispositivos";
 import MenuFiltroDispositivos from "../../components/MenuFiltroDispositivos";
@@ -75,6 +75,10 @@ function DropdownCustomizado({ name, value, options, placeholder, onChange }: Dr
 }
 // ============================================================================
 
+function estadoEspecial(estado: string) {
+  return estado === "REPARO" || estado === "MAQUINA PERDIDA";
+}
+
 function GerenciamentoDispositivos() {
   const router = useRouter();
   const pathname = usePathname();
@@ -102,6 +106,7 @@ function GerenciamentoDispositivos() {
   const [modalAberto, setModalAberto] = useState(false);
   const [loadingSalvar, setLoadingSalvar] = useState(false);
   const [loadingExcluir, setLoadingExcluir] = useState(false);
+  const [loadingEstado, setLoadingEstado] = useState<"REPARO" | "MAQUINA PERDIDA" | null>(null);
   const [mensagemModal, setMensagemModal] = useMensagem();
 
   // Dados do formulário interno do Pop-up
@@ -111,6 +116,7 @@ function GerenciamentoDispositivos() {
   const [isParceiro, setIsParceiro] = useState(false);
   const [isEvento, setIsEvento] = useState(false);
   const [nomeClienteVisual, setNomeClienteVisual] = useState("");
+  const modeloDaFicha = modeloPorSerial(formData.numero_serial);
 
   // 1. CARREGA FORNECEDORES E PARCEIROS 1 VEZ
   useEffect(() => {
@@ -203,7 +209,11 @@ function GerenciamentoDispositivos() {
   useEffect(() => {
     if (!formData.mid) {
       setNomeClienteVisual("");
-      setFormData(prev => ({ ...prev, estado: "ESTOQUE" }));
+      setFormData(prev => (
+        estadoEspecial(prev.estado) || prev.estado === "ESTOQUE"
+          ? prev
+          : { ...prev, estado: "ESTOQUE" }
+      ));
       return;
     }
 
@@ -216,7 +226,11 @@ function GerenciamentoDispositivos() {
 
           if (clienteExato) {
             setNomeClienteVisual(`✅ ${clienteExato.nome}`);
-            setFormData(prev => ({ ...prev, estado: "NO CLIENTE" }));
+            setFormData(prev => (
+              estadoEspecial(prev.estado) || prev.estado === "NO CLIENTE"
+                ? prev
+                : { ...prev, estado: "NO CLIENTE" }
+            ));
           } else {
             setNomeClienteVisual("⚠️ MID não cadastrado no sistema");
           }
@@ -240,25 +254,21 @@ function GerenciamentoDispositivos() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // 5. SALVA AS ALTERAÇÕES (PUT)
-  const handleSalvarEdicao = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoadingSalvar(true);
-    setMensagemModal({ tipo: "", texto: "" });
+  const recarregarLista = () => {
+    setTermoBuscaReal(termoBuscaReal + " ");
+    setTimeout(() => setTermoBuscaReal(termoBuscaReal.trim()), 1000);
+  };
 
-    // =================================================================
-    // 🛑 NOVA REGRA DE NEGÓCIO: Trava de Estoque vs MID/Fornecedor
-    // =================================================================
+  const persistirFicha = async (estado: string) => {
     const temMid = formData.mid && formData.mid.trim() !== "";
     const temFornecedor = formData.fornecedor_nome && formData.fornecedor_nome.trim() !== "";
 
-    if (temMid && temFornecedor && formData.estado === "ESTOQUE") {
+    if (temMid && temFornecedor && estado === "ESTOQUE") {
       setMensagemModal({
         tipo: "erro",
         texto: "Máquina vinculada a um MID e com Fornecedor não pode permanecer no status 'ESTOQUE'."
       });
-      setLoadingSalvar(false);
-      return; // O "return" mata a função aqui e impede o envio ao servidor!
+      return false;
     }
 
     if (isParceiro && !formData.adquirente_nome) {
@@ -266,15 +276,13 @@ function GerenciamentoDispositivos() {
         tipo: "erro",
         texto: "Selecione o parceiro ou desmarque a opção."
       });
-      setLoadingSalvar(false);
-      return;
+      return false;
     }
-    // =================================================================
 
     const payload = {
-      modelo: formData.modelo || null,
+      modelo: modeloDaFicha || null,
       numero_serial: (formData.numero_serial || "").trim().toUpperCase() || null,
-      estado: formData.estado || null,
+      estado: estado || null,
       aquisicao: formData.aquisicao || null,
       mid: formData.mid || null,
       fornecedor_nome: formData.fornecedor_nome || null,
@@ -288,23 +296,43 @@ function GerenciamentoDispositivos() {
         body: JSON.stringify(payload),
       });
 
-      if (response.ok) {
-        setMensagemModal({ tipo: "sucesso", texto: "Dispositivo updated com sucesso!" });
-        setPaginaAtual(prev => prev);
-        setTermoBuscaReal(termoBuscaReal + " ");
-        setTimeout(() => {
-          setTermoBuscaReal(termoBuscaReal.trim());
-          setModalAberto(false);
-        }, 1000);
-      } else {
-        const erro = await response.json();
-        setMensagemModal({ tipo: "erro", texto: erro.detail || "Erro ao salvar alterações." });
-      }
-    } catch (error) {
+      if (response.ok) return true;
+      const erro = await response.json();
+      setMensagemModal({ tipo: "erro", texto: erro.detail || "Erro ao salvar alterações." });
+      return false;
+    } catch {
       setMensagemModal({ tipo: "erro", texto: "Erro de conexão com o servidor." });
-    } finally {
-      setLoadingSalvar(false);
+      return false;
     }
+  };
+
+  const handleSalvarEdicao = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoadingSalvar(true);
+    setMensagemModal({ tipo: "", texto: "" });
+    const ok = await persistirFicha(formData.estado);
+    if (ok) {
+      setMensagemModal({ tipo: "sucesso", texto: "Dispositivo atualizado com sucesso!" });
+      setPaginaAtual(prev => prev);
+      recarregarLista();
+      setTimeout(() => setModalAberto(false), 1000);
+    }
+    setLoadingSalvar(false);
+  };
+
+  const handleAlterarEstado = async (alvo: "REPARO" | "MAQUINA PERDIDA") => {
+    const proximo = formData.estado === alvo
+      ? (formData.mid.trim() ? "NO CLIENTE" : "ESTOQUE")
+      : alvo;
+    setLoadingEstado(alvo);
+    setMensagemModal({ tipo: "", texto: "" });
+    const ok = await persistirFicha(proximo);
+    if (ok) {
+      setFormData(prev => ({ ...prev, estado: proximo }));
+      setMensagemModal({ tipo: "sucesso", texto: `Estado alterado para ${rotuloEstado(proximo)}.` });
+      recarregarLista();
+    }
+    setLoadingEstado(null);
   };
 
   // 6. EXCLUI O DISPOSITIVO (DELETE)
@@ -500,48 +528,53 @@ function GerenciamentoDispositivos() {
             <form onSubmit={handleSalvarEdicao} className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                {/* MODIFICADO: Dropdown customizado de Modelo */}
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Modelo *</label>
-                  <DropdownCustomizado
-                    name="modelo"
-                    value={formData.modelo}
-                    onChange={handleDropdownChange}
-                    placeholder="Selecione o modelo..."
-                    options={[
-                      { value: "P2 BIN", label: "P2 BIN" },
-                      { value: "X990", label: "X990" },
-                      { value: "S920", label: "S920" },
-                      { value: "A910", label: "A910" },
-                      { value: "L300", label: "L300" },
-                    ]}
-                  />
+                  <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Número Serial</label>
+                  <p className="w-full border border-gray-200 rounded-lg p-2.5 text-gray-900 font-semibold bg-gray-50 text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white">
+                    {formData.numero_serial || "—"}
+                  </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Número Serial *</label>
-                  <input required type="text" value={formData.numero_serial} onChange={e => setFormData({ ...formData, numero_serial: e.target.value.toUpperCase() })} className="w-full bg-white border border-gray-300 rounded-lg p-2.5 text-gray-900 font-semibold outline-none focus:ring-2 focus:ring-orange-500 text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white transition-colors" />
+                  <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Modelo</label>
+                  <p className={classeMostradorModelo(modeloDaFicha, false)}>
+                    {modeloDaFicha || "—"}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Definido pelo número serial. Não é possível alterar.
+                  </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                {/* MODIFICADO: Dropdown customizado de Estado */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Estado Atual</label>
-                  <DropdownCustomizado
-                    name="estado"
-                    value={formData.estado}
-                    onChange={handleDropdownChange}
-                    placeholder="Selecione o estado..."
-                    options={[
-                      { value: "NO CLIENTE", label: "NO CLIENTE" },
-                      { value: "ESTOQUE", label: "ESTOQUE" },
-                      { value: "REPARO", label: "REPARO" },
-                      { value: "MAQUINA PERDIDA", label: "MÁQUINA PERDIDA" },
-                    ]}
-                  />
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Estado atual</label>
+                <p className={classeMostradorEstado(formData.estado)}>
+                  {rotuloEstado(formData.estado)}
+                </p>
+                <div className="mt-2 flex flex-col sm:flex-row gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleAlterarEstado("REPARO")}
+                    disabled={loadingEstado !== null || loadingSalvar || loadingExcluir}
+                    className={`flex-1 font-semibold py-2.5 px-4 rounded-lg text-sm transition-colors disabled:opacity-50 ${formData.estado === "REPARO" ? "bg-amber-500 text-white hover:bg-amber-600" : "border border-amber-500 text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950"}`}
+                  >
+                    {loadingEstado === "REPARO" ? "Alterando..." : formData.estado === "REPARO" ? "Sair do reparo" : "Enviar para reparo"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAlterarEstado("MAQUINA PERDIDA")}
+                    disabled={loadingEstado !== null || loadingSalvar || loadingExcluir}
+                    className={`flex-1 font-semibold py-2.5 px-4 rounded-lg text-sm transition-colors disabled:opacity-50 ${formData.estado === "MAQUINA PERDIDA" ? "bg-red-600 text-white hover:bg-red-700" : "border border-red-500 text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950"}`}
+                  >
+                    {loadingEstado === "MAQUINA PERDIDA" ? "Alterando..." : formData.estado === "MAQUINA PERDIDA" ? "Desmarcar máquina perdida" : "Marcar máquina perdida"}
+                  </button>
                 </div>
+                <p className="mt-1.5 text-xs text-gray-500">
+                  Sem MID o estado volta para estoque. Com MID, volta para no cliente.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Aquisição</label>

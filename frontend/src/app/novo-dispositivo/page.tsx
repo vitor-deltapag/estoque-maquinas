@@ -333,7 +333,7 @@ export default function NovoDispositivo() {
               {estadoInferido}
             </p>
             <p className="mt-1 text-xs text-gray-500">
-              Sem MID fica em estoque. Com MID fica no cliente. Reparo e máquina perdida só na edição.
+              Sem MID fica em estoque. Com MID fica no cliente. Reparo e máquina perdida ficam na ficha da máquina.
             </p>
           </div>
 

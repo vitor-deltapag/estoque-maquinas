@@ -7,7 +7,7 @@ import os
 
 from limiter import limiter
 import log  # noqa: F401 — configura logging
-from routers import adquirentes, auth, clientes, dispositivos, eventos, fornecedores, usuarios, parceiros
+from routers import adquirentes, auth, clientes, dispositivos, eventos, fornecedores, usuarios, parceiros, movimentacoes
 
 # Criar o app ANTES de qualquer include_router (senão NameError no reload).
 app = FastAPI(title="API - Estoque Delta")
@@ -53,3 +53,4 @@ app.include_router(dispositivos.router)
 app.include_router(eventos.router)
 app.include_router(usuarios.router)
 app.include_router(parceiros.router)
+app.include_router(movimentacoes.router)
