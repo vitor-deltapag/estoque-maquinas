@@ -125,11 +125,11 @@ Pre-commit (raiz do repositório): se o commit mexe em `backend/`, corre `backen
 
 ## CSV (`importar_excel.py`)
 
-Ficheiro `backend_estoque/dados.csv`. Encoding `windows-1252`.
+Ficheiro `backend_estoque/dados.csv`. Encoding UTF-8 (com ou sem BOM); se não for UTF-8, tenta Windows-1252 e depois Latin-1.
 
-Colunas: `fornecedor`, `codigo`, `nome`, `nome_fantasia`, `mid`, `numero_serial`, `modelo`, `estado`.
+Colunas: `fornecedor`, `codigo`, `nome`, `nome_fantasia`, `mid`, `numero_serial`, `modelo`, `estado`. `aquisicao` entra se a coluna existir.
 
-Comportamento: cache de fornecedor por nome e de cliente por MID (ou nome). Não duplica serial. Estado default ESTOQUE. **Não** passa pelas regras da API (pode criar ESTOQUE+cliente+fornecedor). Commit final; a cada 50 linhas imprime progresso.
+Comportamento: fornecedor pelo nome e cliente pelo MID (ou pelo nome) são criados ou atualizados. Serial já existente atualiza modelo, estado, aquisição, cliente e fornecedor. Estado vazio numa máquina nova vira ESTOQUE. **Não** passa pelas regras da API (pode gravar ESTOQUE+cliente+fornecedor). Um commit no fim; a cada 50 linhas imprime progresso.
 
 ```powershell
 cd backend_estoque

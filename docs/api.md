@@ -51,7 +51,7 @@ Query:
 
 Ordem: `id DESC`. Sem `search` devolve a página completa da tabela.
 
-**200:** lista de `ClienteResponse`: `id`, `nome`, `nome_fantasia`, `mid`, `status`, `parceiro`, `created_at`.
+**200:** lista de `ClienteResponse`: `id`, `nome`, `nome_fantasia`, `mid`, `status`, `parceiro`, `distribuidor_nome`, `created_at`. `distribuidor_nome` junta os distribuidores das máquinas daquele cliente (só leitura).
 
 ### GET `/clientes/{id}`
 
@@ -71,7 +71,7 @@ Substitui todos os campos do create (incluindo `parceiro`). 404 / 400 MID duplic
 
 ### POST `/clientes/sincronizar`
 
-Importa os estabelecimentos da Movingpay (`GET /estabelecimentos`, todas as páginas) e faz upsert pelo MID. O MID sai de `codigoCliente` (depois `mid`, depois `codigoEC`). Grava `nome` (razão social), `nome_fantasia` e `status` (`situacao` 0 BLOQUEADO, 1 ATIVO, 2 ANALISE, 3 DOCUMENTO_PENDENTE, 4 DESCREDENCIADO). Não altera `parceiro` e não apaga cliente local ausente na Movingpay.
+Importa os estabelecimentos da Movingpay (`GET /estabelecimentos`, todas as páginas) e faz upsert pelo MID. O MID sai de `codigoCliente` (depois `mid`, depois `codigoEC`). Grava `nome` (razão social), `nome_fantasia` e `status` (`situacao` 0 BLOQUEADO, 1 ATIVO, 2 ANALISE, 3 DOCUMENTO_PENDENTE, 4 DESCREDENCIADO). O estoque mostra Ativo só quando `status` é `ATIVO`; qualquer outro valor vindo da Movingpay aparece como Inativo e impede vínculo novo de máquina. POST/PUT de cliente não alteram `status`. Não altera `parceiro` e não apaga cliente local ausente na Movingpay.
 
 Query `forcar` default `false`. Sem `forcar`, roda no máximo uma vez a cada 10 minutos por processo. Uma sincronização por vez: a segunda chamada simultânea volta na hora.
 

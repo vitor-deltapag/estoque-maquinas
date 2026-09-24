@@ -131,6 +131,24 @@ def test_criar_dispositivo_serial_duplicado(client, as_comum, db_session):
     assert "já está cadastrado" in res.json()["detail"]
 
 
+def test_criar_dispositivo_cliente_inativo(client, as_comum, db_session):
+    cli = seed_cliente(db_session, mid="MIDOFF", nome="Loja Parada")
+    cli.status = "BLOQUEADO"
+    db_session.commit()
+    res = client.post("/dispositivos", json={"mid": "MIDOFF", "numero_serial": "S-OFF", "modelo": "X", "estado": "NO CLIENTE", "aquisicao": "ALUGADA"})
+    assert res.status_code == 400
+    assert "inativo" in res.json()["detail"]
+
+
+def test_atualizar_mantem_cliente_inativo_ja_vinculado(client, as_comum, db_session):
+    cli = seed_cliente(db_session, mid="MIDKEEP", nome="Loja Antiga")
+    disp = seed_dispositivo(db_session, serial="KEEP1", cliente=cli)
+    cli.status = "DESCREDENCIADO"
+    db_session.commit()
+    res = client.put(f"/dispositivos/{disp.id}", json={"mid": "MIDKEEP", "numero_serial": "KEEP1", "modelo": "X", "estado": "NO CLIENTE", "aquisicao": "ALUGADA"})
+    assert res.status_code == 200
+
+
 def test_criar_dispositivo_mid_inexistente(client, as_comum):
     res = client.post("/dispositivos", json={"mid": "NAO", "numero_serial": "S9", "modelo": "X", "estado": "NO CLIENTE", "aquisicao": "ALUGADA"})
     assert res.status_code == 400

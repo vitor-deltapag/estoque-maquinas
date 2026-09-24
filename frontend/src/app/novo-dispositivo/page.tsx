@@ -114,6 +114,7 @@ export default function NovoDispositivo() {
   const [seriais, setSeriais] = useState<string[]>([]);
   const [isParceiro, setIsParceiro] = useState(false);
   const [nomeClienteVisual, setNomeClienteVisual] = useState("");
+  const [clienteInativo, setClienteInativo] = useState(false);
   const listaSeriaisAtual = seriaisDoFormulario(seriais, buscaSerial);
   const { modelo: modeloInferido, conflito: conflitoModelo } = modeloDoLote(listaSeriaisAtual);
   const estadoInferido = formData.mid.trim() ? "NO CLIENTE" : "ESTOQUE";
@@ -139,13 +140,21 @@ export default function NovoDispositivo() {
   useEffect(() => {
     if (!formData.mid) {
       setNomeClienteVisual("");
+      setClienteInativo(false);
       return;
     }
     const midDigitado = formData.mid.trim();
     const encontrado = clientes.find(c => c.mid === midDigitado);
     if (encontrado) {
-      setNomeClienteVisual(`${encontrado.nome} (${encontrado.nome_fantasia || "Sem Nome Fantasia"})`);
+      const inativo = Boolean(encontrado.status) && encontrado.status.toUpperCase() !== "ATIVO";
+      setClienteInativo(inativo);
+      setNomeClienteVisual(
+        inativo
+          ? `⚠️ ${encontrado.nome} está inativo na Movingpay`
+          : `${encontrado.nome} (${encontrado.nome_fantasia || "Sem Nome Fantasia"})`
+      );
     } else {
+      setClienteInativo(false);
       setNomeClienteVisual("⚠️ MID não localizado no sistema");
     }
   }, [formData.mid, clientes]);
@@ -190,6 +199,10 @@ export default function NovoDispositivo() {
     }
     if (isParceiro && !formData.adquirente_nome) {
       setMensagem({ tipo: "erro", texto: "Selecione o parceiro ou desmarque a opção." });
+      return;
+    }
+    if (formData.mid.trim() && clienteInativo) {
+      setMensagem({ tipo: "erro", texto: "Cliente inativo na Movingpay. Não é possível vincular uma máquina." });
       return;
     }
     if (!formData.aquisicao) {

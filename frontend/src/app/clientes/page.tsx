@@ -33,7 +33,7 @@ export default function ListaClientes() {
 
   // Dados do formulário interno do Pop-up
   const [formData, setFormData] = useState({
-    id: "", nome: "", nome_fantasia: "", mid: "", parceiro: false
+    id: "", nome: "", nome_fantasia: "", mid: "", status: "", distribuidor_nome: "", parceiro: false
   });
 
   // 1. DEBOUNCE (Espera você parar de digitar para pesquisar)
@@ -113,6 +113,8 @@ export default function ListaClientes() {
       nome: cliente.nome || "",
       nome_fantasia: cliente.nome_fantasia || "",
       mid: cliente.mid || "",
+      status: cliente.status || "",
+      distribuidor_nome: cliente.distribuidor_nome || "",
       parceiro: Boolean(cliente.parceiro)
     });
     setMensagemModal({ tipo: "", texto: "" });
@@ -262,11 +264,18 @@ export default function ListaClientes() {
                   <span className="text-xs font-bold text-purple-700 bg-purple-100 py-1 px-2.5 rounded-md transition-colors">
                     MID: {c.mid || "S/N"}
                   </span>
-                  {c.parceiro && (
-                    <span className="text-xs font-bold text-teal-700 bg-teal-100 dark:text-teal-300 dark:bg-teal-900/40 py-1 px-2.5 rounded-md">
-                      Parceiro
-                    </span>
-                  )}
+                  <span className="flex gap-1">
+                    {c.status && (
+                      <span className={`text-xs font-bold py-1 px-2.5 rounded-md ${c.status.toUpperCase() === "ATIVO" ? "text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900/40" : "text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/40"}`}>
+                        {c.status.toUpperCase() === "ATIVO" ? "Ativo" : "Inativo"}
+                      </span>
+                    )}
+                    {c.parceiro && (
+                      <span className="text-xs font-bold text-teal-700 bg-teal-100 dark:text-teal-300 dark:bg-teal-900/40 py-1 px-2.5 rounded-md">
+                        Parceiro
+                      </span>
+                    )}
+                  </span>
                 </div>
                 <h3 className="text-xl font-extrabold text-gray-900 mt-2 truncate dark:text-white transition-colors">
                   {c.nome}
@@ -313,8 +322,9 @@ export default function ListaClientes() {
           POP-UP INTEGRADO: EDIÇÃO + EXCLUSÃO
          ======================================================= */}
       {modalAberto && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-lg p-8 animate-in fade-in zoom-in-95 duration-150 dark:bg-gray-900 dark:border-gray-800 transition-colors">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm p-4">
+          <div className="flex min-h-full items-center justify-center">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-lg p-8 my-8 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150 dark:bg-gray-900 dark:border-gray-800 transition-colors">
 
             <div className="flex justify-between items-center mb-6">
               <div>
@@ -361,6 +371,21 @@ export default function ListaClientes() {
               </div>
 
               <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Distribuidor</label>
+                <p className="w-full border border-gray-200 rounded-lg p-2.5 text-gray-900 font-semibold bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-white">
+                  {formData.distribuidor_nome || "—"}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Situação na Movingpay</label>
+                <p className={`w-full border rounded-lg p-2.5 font-bold ${formData.status && formData.status.toUpperCase() !== "ATIVO" ? "border-red-200 bg-red-50 text-red-700 dark:bg-red-950/40 dark:border-red-900 dark:text-red-300" : "border-gray-200 bg-gray-50 text-gray-900 dark:bg-gray-800 dark:border-gray-700 dark:text-white"}`}>
+                  {!formData.status ? "Ainda não sincronizado" : formData.status.toUpperCase() === "ATIVO" ? "Ativo" : "Inativo"}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">Vem da Movingpay. Não é possível alterar aqui. Cliente inativo não recebe máquina.</p>
+              </div>
+
+              <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Parceiro</label>
                 <DropdownCustomizado
                   value={formData.parceiro ? "sim" : "nao"}
@@ -394,6 +419,7 @@ export default function ListaClientes() {
               </div>
             </form>
 
+          </div>
           </div>
         </div>
       )}

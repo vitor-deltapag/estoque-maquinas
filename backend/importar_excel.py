@@ -2,111 +2,224 @@
 import csv
 import os
 from datetime import datetime
-from database import SessionLocal  # Garanta que o nome do seu arquivo de sessão é este
+from io import StringIO
+
+from sqlalchemy import text
+
+from database import SessionLocal
 import models
+
+ESTADOS = {"NO CLIENTE", "ESTOQUE", "REPARO", "MAQUINA PERDIDA"}
+AQUISICOES = {"COMPRADA", "ALUGADA"}
+
+
+def _texto(linha, coluna):
+    return (linha.get(coluna) or "").strip()
+
+
+def _estado(valor):
+    limpo = valor.strip().upper()
+    if limpo in ESTADOS:
+        return limpo
+    return None
+
+
+def _texto_csv(caminho):
+    bruto = open(caminho, "rb").read()
+    for codificacao in ("utf-8-sig", "cp1252", "latin-1"):
+        try:
+            return bruto.decode(codificacao)
+        except UnicodeDecodeError:
+            continue
+    return bruto.decode("latin-1")
+
 
 def importar():
     db = SessionLocal()
     caminho_csv = "dados.csv"
 
     if not os.path.exists(caminho_csv):
-        print(f"Erro: O arquivo {caminho_csv} não foi encontrado na pasta!")
+        print(f"Erro: O arquivo {caminho_csv} não foi encontrado na pasta!", flush=True)
         return
 
-    print("Iniciando importação dos dados...")
-    
-    # Dicionários de cache para evitar cadastrar o mesmo Cliente/Fornecedor várias vezes
-    fornecedores_cache = {}
-    clientes_cache = {}
+    print("Iniciando importação dos dados...", flush=True)
+
+    fornecedores_novos = set()
+    fornecedores_atualizados = set()
+    clientes_novos = set()
+    clientes_atualizados = set()
+    maquinas_novas = 0
+    maquinas_atualizadas = 0
 
     try:
-        with open(caminho_csv, mode="r", encoding="windows-1252") as arquivo:
-            # Identifica se o CSV usa vírgula ou ponto e vírgula automaticamente
-            conteudo = arquivo.read(2048)
-            delimitador = ";" if ";" in conteudo else ","
-            arquivo.seek(0)
-            
-            leitor = csv.DictReader(arquivo, delimiter=delimitador)
+        db.execute(text("ALTER TABLE dispositivos DROP CONSTRAINT IF EXISTS ck_dispositivos_estoque"))
 
-            linhas_processadas = 0
-            for linha in leitor:
-                # 1. PROCESSAR FORNECEDOR
-                nome_fornecedor = linha.get('fornecedor', '').strip()
-                codigo_fornecedor = linha.get('codigo', '').strip()
-                
-                id_fornecedor = None
-                if nome_fornecedor:
-                    # Se não estiver no cache, busca no banco ou cria
-                    if nome_fornecedor not in fornecedores_cache:
-                        forn = db.query(models.Fornecedor).filter(models.Fornecedor.nome == nome_fornecedor).first()
-                        if not forn:
-                            forn = models.Fornecedor(nome=nome_fornecedor, codigo=codigo_fornecedor if codigo_fornecedor else None)
-                            db.add(forn)
-                            db.commit()
-                            db.refresh(forn)
-                        fornecedores_cache[nome_fornecedor] = forn.id
-                    id_fornecedor = fornecedores_cache[nome_fornecedor]
+        fornecedores_por_nome = {item.nome: item for item in db.query(models.Fornecedor).all()}
+        clientes_por_mid = {}
+        clientes_por_nome = {}
+        for cliente in db.query(models.Cliente).all():
+            if cliente.mid:
+                clientes_por_mid[cliente.mid] = cliente
+            if cliente.nome and cliente.nome not in clientes_por_nome:
+                clientes_por_nome[cliente.nome] = cliente
+        maquinas_por_serial = {}
+        for dispositivo in db.query(models.Dispositivo).all():
+            if dispositivo.numero_serial:
+                maquinas_por_serial[dispositivo.numero_serial.upper()] = dispositivo
 
-                # 2. PROCESSAR CLIENTE (Baseado no MID ou Nome)
-                nome_cliente = linha.get('nome', '').strip()
-                nome_fantasia = linha.get('nome_fantasia', '').strip()
-                mid_cliente = linha.get('mid', '').strip()
-                
-                id_cliente = None
-                if nome_cliente or mid_cliente:
-                    chave_cliente = mid_cliente if mid_cliente else nome_cliente
-                    if chave_cliente not in clientes_cache:
-                        # Busca por MID ou por Nome
-                        cli = None
-                        if mid_cliente:
-                            cli = db.query(models.Cliente).filter(models.Cliente.mid == mid_cliente).first()
-                        else:
-                            cli = db.query(models.Cliente).filter(models.Cliente.nome == nome_cliente).first()
-                        
-                        if not cli:
-                            cli = models.Cliente(
-                                nome=nome_cliente, 
-                                nome_fantasia=nome_fantasia if nome_fantasia else None,
-                                mid=mid_cliente if mid_cliente else None
-                            )
-                            db.add(cli)
-                            db.commit()
-                            db.refresh(cli)
-                        clientes_cache[chave_cliente] = cli.id
-                    id_cliente = clientes_cache[chave_cliente]
+        texto = _texto_csv(caminho_csv)
+        conteudo = texto[:2048]
+        delimitador = ";" if ";" in conteudo else ","
+        leitor = csv.DictReader(StringIO(texto), delimiter=delimitador)
+        if not leitor.fieldnames:
+            raise RuntimeError("O CSV não tem cabeçalho.")
+        leitor.fieldnames = [(nome or "").strip().lower() for nome in leitor.fieldnames]
 
-                # 3. CADASTRAR DISPOSITIVO
-                serial = linha.get('numero_serial', '').strip().upper()
-                modelo = linha.get('modelo', '').strip()
-                estado = linha.get('estado', '').strip()
+        linhas = list(leitor)
+        for linha in linhas:
+            nome_fornecedor = _texto(linha, "fornecedor")
+            codigo_informado = "codigo" in linha
+            codigo_fornecedor = _texto(linha, "codigo") or None
+            if nome_fornecedor:
+                forn = fornecedores_por_nome.get(nome_fornecedor)
+                if forn is None:
+                    forn = models.Fornecedor(
+                        nome=nome_fornecedor,
+                        codigo=codigo_fornecedor if codigo_informado else None,
+                    )
+                    db.add(forn)
+                    fornecedores_por_nome[nome_fornecedor] = forn
+                    fornecedores_novos.add(id(forn))
+                elif codigo_informado and forn.codigo != codigo_fornecedor:
+                    forn.codigo = codigo_fornecedor
+                    if id(forn) not in fornecedores_novos:
+                        fornecedores_atualizados.add(id(forn))
 
-                if serial:
-                    # Verifica se a máquina já está cadastrada para não duplicar
-                    disp_existente = db.query(models.Dispositivo).filter(models.Dispositivo.numero_serial == serial).first()
-                    if not disp_existente:
-                        novo_disp = models.Dispositivo(
-                            numero_serial=serial,
-                            modelo=modelo if modelo else None,
-                            estado=estado if estado else "ESTOQUE",
-                            fornecedor=id_fornecedor,
-                            cliente=id_cliente,
-                            data_chegada=datetime.now(),
-                            data_ultima_atualizacao=datetime.now()
+            nome_cliente = _texto(linha, "nome")
+            fantasia_informada = "nome_fantasia" in linha
+            nome_fantasia = _texto(linha, "nome_fantasia") or None
+            mid_cliente = _texto(linha, "mid") or None
+            if nome_cliente or mid_cliente:
+                cli = clientes_por_mid.get(mid_cliente) if mid_cliente else clientes_por_nome.get(nome_cliente)
+                if cli is None:
+                    cli = models.Cliente(
+                        nome=nome_cliente or mid_cliente,
+                        nome_fantasia=nome_fantasia,
+                        mid=mid_cliente,
+                    )
+                    db.add(cli)
+                    clientes_novos.add(id(cli))
+                    if cli.mid:
+                        clientes_por_mid[cli.mid] = cli
+                    if cli.nome and cli.nome not in clientes_por_nome:
+                        clientes_por_nome[cli.nome] = cli
+                mudou_cliente = False
+                if nome_cliente and cli.nome != nome_cliente:
+                    cli.nome = nome_cliente
+                    mudou_cliente = True
+                    if nome_cliente not in clientes_por_nome:
+                        clientes_por_nome[nome_cliente] = cli
+                if fantasia_informada and cli.nome_fantasia != nome_fantasia:
+                    cli.nome_fantasia = nome_fantasia
+                    mudou_cliente = True
+                if mid_cliente and cli.mid != mid_cliente:
+                    cli.mid = mid_cliente
+                    clientes_por_mid[mid_cliente] = cli
+                    mudou_cliente = True
+                if mudou_cliente and id(cli) not in clientes_novos:
+                    clientes_atualizados.add(id(cli))
+
+        db.flush()
+
+        linhas_processadas = 0
+        for linha in linhas:
+            nome_fornecedor = _texto(linha, "fornecedor")
+            forn = fornecedores_por_nome.get(nome_fornecedor) if nome_fornecedor else None
+            id_fornecedor = forn.id if forn is not None else None
+
+            nome_cliente = _texto(linha, "nome")
+            mid_cliente = _texto(linha, "mid") or None
+            id_cliente = None
+            if nome_cliente or mid_cliente:
+                cli = clientes_por_mid.get(mid_cliente) if mid_cliente else clientes_por_nome.get(nome_cliente)
+                id_cliente = cli.id if cli is not None else None
+
+            serial = _texto(linha, "numero_serial").upper()
+            modelo_informado = "modelo" in linha
+            modelo = _texto(linha, "modelo") or None
+            bruto_estado = _texto(linha, "estado")
+            estado = _estado(bruto_estado)
+            aquisicao = _texto(linha, "aquisicao").upper()
+            if aquisicao not in AQUISICOES:
+                aquisicao = None
+
+            if serial:
+                disp = maquinas_por_serial.get(serial)
+                if disp is None:
+                    disp = models.Dispositivo(
+                        numero_serial=serial,
+                        modelo=modelo,
+                        estado=estado or "ESTOQUE",
+                        aquisicao=aquisicao,
+                        fornecedor=id_fornecedor,
+                        cliente=id_cliente,
+                        data_chegada=datetime.now(),
+                        data_ultima_atualizacao=datetime.now(),
+                    )
+                    db.add(disp)
+                    maquinas_por_serial[serial] = disp
+                    maquinas_novas += 1
+                else:
+                    if bruto_estado and estado is None:
+                        print(
+                            f"Aviso: estado '{bruto_estado}' do serial {serial} fora da lista. O estado atual foi mantido.",
+                            flush=True,
                         )
-                        db.add(novo_disp)
-                
-                linhas_processadas += 1
-                if linhas_processadas % 50 == 0:
-                    print(f"{linhas_processadas} linhas analisadas...")
+                    disp.numero_serial = serial
+                    if modelo_informado:
+                        disp.modelo = modelo
+                    if estado:
+                        disp.estado = estado
+                    if aquisicao:
+                        disp.aquisicao = aquisicao
+                    if "fornecedor" in linha:
+                        disp.fornecedor = id_fornecedor
+                    if "nome" in linha or "mid" in linha:
+                        disp.cliente = id_cliente
+                    disp.data_ultima_atualizacao = datetime.now()
+                    maquinas_atualizadas += 1
 
-            db.commit()
-            print(f"Sucesso! Importação concluída. {linhas_processadas} registros processados.")
+            linhas_processadas += 1
+            if linhas_processadas % 500 == 0:
+                print(f"{linhas_processadas} linhas analisadas...", flush=True)
+
+        db.flush()
+        db.execute(text("""
+            ALTER TABLE dispositivos
+            ADD CONSTRAINT ck_dispositivos_estoque
+            CHECK (
+                estado IS NULL
+                OR estado <> 'ESTOQUE'
+                OR cliente IS NULL
+                OR fornecedor IS NULL
+            ) NOT VALID
+        """))
+        db.commit()
+        print(
+            "Sucesso! Importação concluída. "
+            f"{linhas_processadas} linhas. "
+            f"Fornecedores: {len(fornecedores_novos)} novos, {len(fornecedores_atualizados)} atualizados. "
+            f"Clientes: {len(clientes_novos)} novos, {len(clientes_atualizados)} atualizados. "
+            f"Máquinas: {maquinas_novas} novas, {maquinas_atualizadas} atualizadas.",
+            flush=True,
+        )
 
     except Exception as e:
         db.rollback()
-        print(f"Erro durante a importação: {e}")
+        print(f"Erro durante a importação: {e}", flush=True)
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     importar()

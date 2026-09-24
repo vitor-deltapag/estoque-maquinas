@@ -116,6 +116,8 @@ function GerenciamentoDispositivos() {
   const [isParceiro, setIsParceiro] = useState(false);
   const [isEvento, setIsEvento] = useState(false);
   const [nomeClienteVisual, setNomeClienteVisual] = useState("");
+  const [midOriginal, setMidOriginal] = useState("");
+  const [clienteInativo, setClienteInativo] = useState(false);
   const modeloDaFicha = modeloPorSerial(formData.numero_serial);
 
   // 1. CARREGA FORNECEDORES E PARCEIROS 1 VEZ
@@ -199,6 +201,9 @@ function GerenciamentoDispositivos() {
       fornecedor_nome: disp.fornecedor_rel?.nome || "",
       adquirente_nome: disp.adquirente_rel?.nome || ""
     });
+    const midAtual = disp.cliente_rel?.mid || "";
+    setMidOriginal(midAtual);
+    setClienteInativo(Boolean(disp.cliente_rel?.status) && disp.cliente_rel.status.toUpperCase() !== "ATIVO");
     setIsParceiro(Boolean(disp.adquirente_rel?.nome));
     setIsEvento(Boolean(disp.em_evento));
     setMensagemModal({ tipo: "", texto: "" });
@@ -209,6 +214,7 @@ function GerenciamentoDispositivos() {
   useEffect(() => {
     if (!formData.mid) {
       setNomeClienteVisual("");
+      setClienteInativo(false);
       setFormData(prev => (
         estadoEspecial(prev.estado) || prev.estado === "ESTOQUE"
           ? prev
@@ -225,13 +231,16 @@ function GerenciamentoDispositivos() {
           const clienteExato = dados.find((c: any) => c.mid === formData.mid.trim());
 
           if (clienteExato) {
-            setNomeClienteVisual(`✅ ${clienteExato.nome}`);
+            const inativo = Boolean(clienteExato.status) && clienteExato.status.toUpperCase() !== "ATIVO";
+            setClienteInativo(inativo);
+            setNomeClienteVisual(inativo ? `⚠️ ${clienteExato.nome} está inativo na Movingpay` : `✅ ${clienteExato.nome}`);
             setFormData(prev => (
               estadoEspecial(prev.estado) || prev.estado === "NO CLIENTE"
                 ? prev
                 : { ...prev, estado: "NO CLIENTE" }
             ));
           } else {
+            setClienteInativo(false);
             setNomeClienteVisual("⚠️ MID não cadastrado no sistema");
           }
         }
@@ -262,6 +271,14 @@ function GerenciamentoDispositivos() {
   const persistirFicha = async (estado: string) => {
     const temMid = formData.mid && formData.mid.trim() !== "";
     const temFornecedor = formData.fornecedor_nome && formData.fornecedor_nome.trim() !== "";
+
+    if (temMid && clienteInativo && formData.mid.trim() !== midOriginal.trim()) {
+      setMensagemModal({
+        tipo: "erro",
+        texto: "Cliente inativo na Movingpay. Não é possível vincular uma máquina."
+      });
+      return false;
+    }
 
     if (temMid && temFornecedor && estado === "ESTOQUE") {
       setMensagemModal({

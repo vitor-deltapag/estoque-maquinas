@@ -1,4 +1,4 @@
-from conftest import seed_cliente, seed_fornecedor
+from conftest import seed_cliente, seed_dispositivo, seed_fornecedor
 
 
 def test_crud_adquirentes(client, as_comum):
@@ -90,6 +90,7 @@ def test_crud_clientes_e_busca(client, as_comum, db_session):
     assert criar.status_code == 201
     item_id = criar.json()["id"]
     assert criar.json()["mid"] == "MID9"
+    assert criar.json()["status"] is None
     assert criar.json()["parceiro"] is False
 
     lista = client.get("/clientes?search=alpha")
@@ -105,8 +106,32 @@ def test_crud_clientes_e_busca(client, as_comum, db_session):
     )
     assert upd.status_code == 200
     assert upd.json()["mid"] is None
+    assert upd.json()["status"] is None
 
     assert client.delete(f"/clientes/{item_id}").status_code == 204
+
+
+def test_put_cliente_nao_altera_status_movingpay(client, as_comum, db_session):
+    cli = seed_cliente(db_session, mid="MIDS", nome="Loja")
+    cli.status = "BLOQUEADO"
+    db_session.commit()
+    res = client.put(
+        f"/clientes/{cli.id}",
+        json={"nome": "Loja", "nome_fantasia": "X", "mid": "MIDS", "status": "ATIVO", "parceiro": False},
+    )
+    assert res.status_code == 200
+    assert res.json()["status"] == "BLOQUEADO"
+
+
+def test_cliente_mostra_distribuidor_das_maquinas(client, as_comum, db_session):
+    cli = seed_cliente(db_session, mid="MIDD", nome="Loja Dist")
+    forn = seed_fornecedor(db_session, nome="Rede Norte", codigo="RN")
+    seed_dispositivo(db_session, serial="DIST1", cliente=cli, fornecedor=forn, estado="NO CLIENTE")
+    res = client.get(f"/clientes/{cli.id}")
+    assert res.status_code == 200
+    assert res.json()["distribuidor_nome"] == "Rede Norte"
+    lista = client.get("/clientes?search=MIDD")
+    assert lista.json()[0]["distribuidor_nome"] == "Rede Norte"
 
 
 def test_cliente_404(client, as_comum):

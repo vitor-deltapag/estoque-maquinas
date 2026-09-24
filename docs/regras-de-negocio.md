@@ -13,6 +13,7 @@
 | Aquisição fora de `COMPRADA` / `ALUGADA` | 400 `Aquisição inválida. Use COMPRADA ou ALUGADA.` |
 | Seriais repetidos no payload do lote | Contam uma vez (trim + maiúsculas) |
 | MID preenchido e não existe `cliente.mid` exacto | 400 |
+| MID de cliente com `status` preenchido e diferente de `ATIVO` | 400. Máquina que já está nesse cliente pode ser salva sem trocar o MID. Sem `status` (ainda não veio da Movingpay) o vínculo segue |
 | MID vazio | `dispositivos.cliente = NULL` |
 | `fornecedor_nome` preenchido e não há `fornecedor.nome` exacto | 400 |
 | `adquirente_nome` preenchido e não há cliente com esse **nome** e `parceiro=true` | 400 |
@@ -49,6 +50,7 @@ Sem regra extra na API além de 404. Linhas `evento_dispositivo` dessa máquina 
 | `parceiro` omitido no create | `false` |
 | DELETE com máquinas em `cliente` ou `adquirente` | 400 vínculo |
 | Desmarcar parceiro com máquinas ainda apontando `adquirente` | PUT **permite**; as máquinas continuam com o id até alguém limpar o dropdown na ficha |
+| `status` no POST/PUT do estoque | Ignorado. Só a sincronização Movingpay grava (`ATIVO` ou outro: BLOQUEADO, ANALISE, DOCUMENTO_PENDENTE, DESCREDENCIADO). A tela mostra Ativo ou Inativo, sem edição |
 
 ## Parceiro (aba `/parceiros`)
 
@@ -153,4 +155,4 @@ Senha: só Auth. Recuperação: e-mail do Supabase, não a FastAPI.
 
 ## Importação CSV (`importar_excel.py`)
 
-Colunas lidas: `fornecedor`, `codigo`, `nome`, `nome_fantasia`, `mid`, `numero_serial`, `modelo`, `estado`. Sem serial, não cria máquina. Serial já existente: skip. Estado vazio → `ESTOQUE`. **Não** aplica a trava ESTOQUE+cliente+fornecedor (pode inserir legado; o CHECK é NOT VALID). Encoding `windows-1252`. Delimitador `;` se aparecer no preview de 2048 bytes, senão `,`.
+Colunas lidas: `fornecedor`, `codigo`, `nome`, `nome_fantasia`, `mid`, `numero_serial`, `modelo`, `estado` e, se existir, `aquisicao` (`COMPRADA` ou `ALUGADA`). Sem serial, não cria máquina. Serial já existente é atualizado: modelo, estado, aquisição, cliente e fornecedor. Fornecedor já existente (mesmo nome) atualiza o código. Cliente já existente (mesmo MID, ou o nome quando não há MID) atualiza nome, fantasia e MID. Estado vazio numa máquina nova → `ESTOQUE`. Estado vazio ou fora da lista numa máquina já existente mantém o valor atual. Coluna ausente no arquivo não apaga o campo correspondente. **Não** aplica a trava ESTOQUE+cliente+fornecedor: a importação tira o CHECK nessa transação e o recria `NOT VALID` antes do commit, para poder gravar o legado da planilha. Encoding UTF-8 (com ou sem BOM); se o arquivo não for UTF-8, tenta Windows-1252 e depois Latin-1. O nome das colunas é comparado sem diferenciar maiúsculas. Delimitador `;` se aparecer no preview de 2048 bytes, senão `,`.

@@ -61,6 +61,7 @@ class ClienteCreate(ClienteBase):
 
 class ClienteResponse(ClienteBase):
     id: int
+    distribuidor_nome: Optional[str] = None
     created_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 

@@ -87,6 +87,19 @@ def _normalizar_aquisicao(aquisicao, *, obrigatorio: bool):
     return None
 
 
+def _cliente_inativo(cliente: models.Cliente) -> bool:
+    status = (cliente.status or "").strip().upper()
+    return bool(status) and status != "ATIVO"
+
+
+def _recusar_vinculo_inativo(cliente: models.Cliente) -> None:
+    if _cliente_inativo(cliente):
+        raise HTTPException(
+            status_code=400,
+            detail=f"O cliente '{cliente.nome}' está inativo na Movingpay. Não é possível vincular uma máquina.",
+        )
+
+
 def _recusar_estoque_com_mid_e_fornecedor(mid, fornecedor_nome, estado):
     if mid and fornecedor_nome and estado == "ESTOQUE":
         raise HTTPException(
@@ -106,6 +119,7 @@ def _resolver_vinculos(db: Session, mid, fornecedor_nome, adquirente_nome):
                 status_code=400,
                 detail=f"Operação cancelada: O MID '{mid_informado}' não está cadastrado no sistema."
             )
+        _recusar_vinculo_inativo(cliente_encontrado)
         cliente_id = cliente_encontrado.id
 
     fornecedor_id = None
@@ -381,6 +395,8 @@ def atualizar_dispositivo(item_id: int, dispositivo: schemas.DispositivoCreate, 
         if not cliente_encontrado:
             raise HTTPException(status_code=400, detail=f"O MID '{mid_informado}' não existe.")
         novo_cliente_id = cliente_encontrado.id
+        if cliente_anterior != novo_cliente_id:
+            _recusar_vinculo_inativo(cliente_encontrado)
 
     if cliente_anterior != novo_cliente_id:
         registrar(db, tipo="DESVINCULO_CLIENTE", dispositivo=item, cliente_id=cliente_anterior)
