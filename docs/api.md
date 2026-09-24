@@ -235,11 +235,11 @@ Semana de segunda a domingo que contém `semana`. Sem o parâmetro, usa a data d
 
 Dentro do bloco, a mesma máquina que entra e sai na semana fica `nao_alterou`. Saída de uma máquina e entrada de outra no mesmo cliente é troca: não soma em `vinculos_novos` nem em `desvinculos`. Máquina que sai de um cliente e entra em outro conta desvínculo num e vínculo novo no outro.
 
-`totais` soma `vinculos_novos`, `desvinculos` e `trocas` só dos blocos `cliente`.
+`totais` soma `vinculos_novos`, `desvinculos` e `trocas` só dos blocos `cliente`. `logs` lista cada registro da semana, do mais recente ao mais antigo: tipo, serial, usuário, cliente. Inclui `EXCLUSAO`, que não entra no saldo.
 
 ### GET `/movimentacoes/maquina?serial=`
 
-Serial em maiúsculas, ignorando espaços. 400 se vier vazio. 404 se a máquina não existe.
+Serial em maiúsculas, ignorando espaços. 400 se vier vazio. 404 se não há máquina nem registro com esse serial. Máquina excluída devolve `excluida: true` e `logs` com o serial.
 
 Devolve serial, modelo, estado, aquisição, `em_evento`, cliente atual (`nome` e `mid`), fornecedor, parceiro e `ultimos_vinculos`: até 3 `VINCULO_CLIENTE` desse serial, do mais recente ao mais antigo, com data, nome do cliente e MID atual desse cliente.
 

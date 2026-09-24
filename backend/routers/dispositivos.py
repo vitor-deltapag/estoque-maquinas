@@ -236,7 +236,7 @@ def criar_dispositivo(dispositivo: schemas.DispositivoCreate, db: Session = Depe
     try:
         db.add(novo_dispositivo)
         db.flush()
-        registrar(db, tipo="VINCULO_CLIENTE", dispositivo=novo_dispositivo, cliente_id=cliente_id)
+        registrar(db, tipo="VINCULO_CLIENTE", dispositivo=novo_dispositivo, cliente_id=cliente_id, usuario=user)
         db.commit()
         return _dispositivo_por_id(db, novo_dispositivo.id)
 
@@ -296,7 +296,7 @@ def criar_dispositivos_lote(
         db.add_all(novos)
         db.flush()
         for dispositivo in novos:
-            registrar(db, tipo="VINCULO_CLIENTE", dispositivo=dispositivo, cliente_id=cliente_id)
+            registrar(db, tipo="VINCULO_CLIENTE", dispositivo=dispositivo, cliente_id=cliente_id, usuario=user)
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -399,8 +399,8 @@ def atualizar_dispositivo(item_id: int, dispositivo: schemas.DispositivoCreate, 
             _recusar_vinculo_inativo(cliente_encontrado)
 
     if cliente_anterior != novo_cliente_id:
-        registrar(db, tipo="DESVINCULO_CLIENTE", dispositivo=item, cliente_id=cliente_anterior)
-        registrar(db, tipo="VINCULO_CLIENTE", dispositivo=item, cliente_id=novo_cliente_id)
+        registrar(db, tipo="DESVINCULO_CLIENTE", dispositivo=item, cliente_id=cliente_anterior, usuario=user)
+        registrar(db, tipo="VINCULO_CLIENTE", dispositivo=item, cliente_id=novo_cliente_id, usuario=user)
     item.cliente = novo_cliente_id
 
     nome_forn = dados_entrada.get("fornecedor_nome")
@@ -433,7 +433,8 @@ def deletar_dispositivo(item_id: int, db: Session = Depends(get_db), user: model
     item = db.query(models.Dispositivo).filter(models.Dispositivo.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Dispositivo não encontrado")
-    registrar(db, tipo="DESVINCULO_CLIENTE", dispositivo=item, cliente_id=item.cliente)
+    registrar(db, tipo="DESVINCULO_CLIENTE", dispositivo=item, cliente_id=item.cliente, usuario=user)
+    registrar(db, tipo="EXCLUSAO", dispositivo=item, usuario=user)
     db.delete(item)
     db.commit()
     return

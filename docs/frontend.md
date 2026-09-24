@@ -43,7 +43,7 @@ Enquanto `carregando` em rota privada: barra `h-16` vazia (não o menu). Depois:
 
 ## Painel `/`
 
-Estado inicial dos totais: zeros. `total_eventos_pendentes` alimenta a faixa. Link da faixa: `/eventos`. Card Evento conta `total_evento` (máquinas, não eventos) mas o botão vai a `/eventos`. Card Usuários só se `GET /usuarios/me` for `ADMIN`; número vem de `total_usuarios`.
+Estado inicial dos totais: zeros. `total_eventos_pendentes` alimenta a faixa. Link da faixa: `/eventos`. Card Evento conta `total_evento` (máquinas, não eventos) mas o botão vai a `/eventos`. Card Usuários só se `GET /usuarios/me` for `ADMIN`; número vem de `total_usuarios`. Gráfico de barras da semana atual (`GET /movimentacoes/resumo`): vínculos novos, desvínculos e trocas. O botão abre `/movimentacoes`.
 
 ---
 

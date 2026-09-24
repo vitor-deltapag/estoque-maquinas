@@ -141,6 +141,7 @@ def criar_evento(
                 dispositivo=maquina,
                 cliente_id=novo.cliente_id,
                 evento_id=novo.id,
+                usuario=user,
             )
         db.commit()
     except IntegrityError:
@@ -187,6 +188,7 @@ def finalizar_evento(
             dispositivo=maquina,
             cliente_id=item.cliente_id,
             evento_id=item.id,
+            usuario=user,
         )
         maquina.em_evento = False
         maquina.evento_id = None

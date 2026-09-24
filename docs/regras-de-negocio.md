@@ -14,7 +14,8 @@
 | Seriais repetidos no payload do lote | Contam uma vez (trim + maiúsculas) |
 | MID preenchido e não existe `cliente.mid` exacto | 400 |
 | MID de cliente com `status` preenchido e diferente de `ATIVO` | 400. Máquina que já está nesse cliente pode ser salva sem trocar o MID. Sem `status` (ainda não veio da Movingpay) o vínculo segue |
-| MID vazio | `dispositivos.cliente = NULL` |
+| MID vazio | `dispositivos.cliente = NULL`. Na tela, o distribuidor some junto |
+| MID de um cliente que já tem distribuidor nas máquinas | A tela mostra esse distribuidor e grava `fornecedor_nome` ao salvar. O campo não é editável |
 | `fornecedor_nome` preenchido e não há `fornecedor.nome` exacto | 400 |
 | `adquirente_nome` preenchido e não há cliente com esse **nome** e `parceiro=true` | 400 |
 | `adquirente_nome` vazio | `adquirente = NULL` (máquina sem parceiro) |
@@ -119,7 +120,7 @@ Conta por cliente, de segunda a domingo, só o bloco de cliente (evento fica de 
 | Só entra uma máquina | 1 | 0 | 0 |
 | Só sai uma máquina | 0 | 1 | 0 |
 
-O total da semana é a soma dessas linhas. A busca por serial lista os últimos 3 vínculos da máquina (`VINCULO_CLIENTE`), com o MID que o cliente tem hoje. Entrada de evento não entra nessa lista.
+O total da semana é a soma dessas linhas. Cada registro guarda o nome do usuário que vinculou, desvinculou, moveu em evento ou excluiu. A exclusão grava o serial mesmo depois que a máquina some. A busca por serial lista os últimos 3 vínculos (`VINCULO_CLIENTE`), com o usuário e o MID que o cliente tem hoje. Se a máquina já foi excluída, a busca devolve o histórico desse serial. Entrada de evento não entra na lista dos 3 vínculos.
 
 ## Utilizadores
 

@@ -189,11 +189,12 @@ class MovimentacaoMaquina(Base):
     evento_id = Column(Integer, ForeignKey("evento.id", ondelete="SET NULL"), nullable=True)
     numero_serial = Column(String(100), nullable=False)
     modelo = Column(String(50), nullable=False)
+    usuario_nome = Column(String(255), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
     __table_args__ = (
         CheckConstraint(
-            "tipo IN ('VINCULO_CLIENTE', 'DESVINCULO_CLIENTE', 'ENTRADA_EVENTO', 'SAIDA_EVENTO')",
+            "tipo IN ('VINCULO_CLIENTE', 'DESVINCULO_CLIENTE', 'ENTRADA_EVENTO', 'SAIDA_EVENTO', 'EXCLUSAO')",
             name="ck_movimentacao_tipo",
         ),
     )

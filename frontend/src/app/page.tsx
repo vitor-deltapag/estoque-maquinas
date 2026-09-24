@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend, BarChart, Bar, XAxis, YAxis } from "recharts";
 import { apiFetch } from "../lib/api";
 
 export default function Home() {
   const [metricas, setMetricas] = useState({ maquinas: 0, clientes: 0, fornecedores: 0, parceiro: 0, evento: 0, eventosPendentes: 0, usuarios: 0 });
   const [isAdmin, setIsAdmin] = useState(false);
   const [graficosModelos, setGraficosModelos] = useState<any[]>([]);
+  const [semana, setSemana] = useState<any>(null);
   const [carregando, setCarregando] = useState(true);
 
   // Cores padronizadas para os status do sistema
@@ -19,15 +20,22 @@ export default function Home() {
     "MAQUINA PERDIDA": "#EF4444", // Vermelho
   };
   const COR_PADRAO = "#9CA3AF"; // Cinza para status indefinido
+  const dicaGrafico = {
+    contentStyle: { backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: 8, color: "#111827" },
+    labelStyle: { color: "#111827", fontWeight: 700 },
+    itemStyle: { color: "#111827" },
+  };
 
   useEffect(() => {
     async function carregarDashboard() {
       try {
         // Faz APENAS UMA requisição super rápida para a rota otimizada do dashboard
-        const [response, meRes] = await Promise.all([
+        const [response, meRes, semanaRes] = await Promise.all([
           apiFetch(`/dispositivos/dashboard`, { cache: "no-store" }),
           apiFetch(`/usuarios/me`, { cache: "no-store" }),
+          apiFetch(`/movimentacoes/resumo`, { cache: "no-store" }),
         ]);
+        if (semanaRes.ok) setSemana(await semanaRes.json());
 
         if (meRes.ok) {
           const me = await meRes.json();
@@ -174,6 +182,38 @@ export default function Home() {
         )}
       </div>
 
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm mb-10">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+          <div>
+            <h2 className="text-2xl font-bold text-orange-600">Movimentação da semana</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              {semana ? `${semana.inicio} a ${semana.fim}` : "Semana atual"}
+            </p>
+          </div>
+          <Link href="/movimentacoes" className="text-center bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition-colors">
+            Abrir movimentações →
+          </Link>
+        </div>
+        <div className="h-64 w-full">
+          <ResponsiveContainer width="99%" height={256}>
+            <BarChart data={[
+              { name: "Vínculos novos", valor: semana?.totais?.vinculos_novos || 0 },
+              { name: "Desvínculos", valor: semana?.totais?.desvinculos || 0 },
+              { name: "Trocas", valor: semana?.totais?.trocas || 0 },
+            ]}>
+              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+              <Tooltip cursor={false} {...dicaGrafico} formatter={(value) => [`${value}`, "Quantidade"]} />
+              <Bar dataKey="valor" radius={[6, 6, 0, 0]}>
+                <Cell fill="#10B981" />
+                <Cell fill="#EF4444" />
+                <Cell fill="#F59E0B" />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
       {/* GRÁFICOS DIVIDIDOS POR MODELO */}
       <h2 className="text-2xl font-bold text-orange-600 mb-6 border-b border-gray-200 dark:border-gray-800 pb-2 transition-colors">Status do Estoque por Modelo</h2>
 
@@ -203,7 +243,7 @@ export default function Home() {
                       <Cell key={`cell-${i}`} fill={CORES_STATUS[entry.name] || COR_PADRAO} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => [`${value} Máquinas`, 'Quantidade']} />
+                  <Tooltip cursor={false} {...dicaGrafico} formatter={(value) => [`${value} Máquinas`, "Quantidade"]} />
                   <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px' }} />
                 </PieChart>
               </ResponsiveContainer>

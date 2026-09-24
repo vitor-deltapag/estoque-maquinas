@@ -20,6 +20,21 @@ def _maquina(serial, mid="MIDM"):
     }
 
 
+def test_exclusao_permanece_no_log_com_serial_e_usuario(client, as_comum, db_session):
+    seed_cliente(db_session, mid="MIDM", nome="Loja")
+    criado = client.post("/dispositivos", json=_maquina("PBDEL"))
+    assert criado.status_code == 201
+    assert client.delete(f"/dispositivos/{criado.json()['id']}").status_code == 204
+    resumo = client.get("/movimentacoes/resumo").json()
+    exclusao = next(item for item in resumo["logs"] if item["tipo"] == "EXCLUSAO")
+    assert exclusao["numero_serial"] == "PBDEL"
+    assert exclusao["usuario_nome"] == "Teste"
+    ficha = client.get("/movimentacoes/maquina?serial=PBDEL")
+    assert ficha.status_code == 200
+    assert ficha.json()["excluida"] is True
+    assert any(item["tipo"] == "EXCLUSAO" for item in ficha.json()["logs"])
+
+
 def test_mesma_maquina_na_semana_nao_altera_saldo(client, as_comum, db_session):
     seed_cliente(db_session, mid="MIDM", nome="Loja")
     criado = client.post("/dispositivos", json=_maquina("PB100"))

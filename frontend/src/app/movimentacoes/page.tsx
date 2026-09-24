@@ -21,6 +21,11 @@ const ROTULO: Record<string, string> = {
   troca_entrada: "Troca (entrou)",
   desvinculo: "Desvínculo",
   vinculo_novo: "Vínculo novo",
+  VINCULO_CLIENTE: "Vinculou",
+  DESVINCULO_CLIENTE: "Desvinculou",
+  ENTRADA_EVENTO: "Entrou em evento",
+  SAIDA_EVENTO: "Saiu do evento",
+  EXCLUSAO: "Excluiu a máquina",
 };
 
 function quandoTexto(iso: string) {
@@ -28,6 +33,27 @@ function quandoTexto(iso: string) {
   const dia = new Date(iso);
   if (Number.isNaN(dia.getTime())) return iso;
   return dia.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+}
+
+function linhaRegistro(item: any) {
+  return `${quandoTexto(item.quando)} · ${item.usuario_nome || "Usuário não identificado"} · ${ROTULO[item.tipo] || item.tipo} · ${item.numero_serial}${item.cliente_nome ? ` · ${item.cliente_nome}` : ""}`;
+}
+
+function baixarRegistros(resumo: any) {
+  const logs = resumo?.logs || [];
+  const corpo = [
+    `Registros da semana ${resumo?.inicio || ""} a ${resumo?.fim || ""}`,
+    "",
+    ...(logs.length ? logs.map(linhaRegistro) : ["Nenhum registro nesta semana."]),
+    "",
+  ].join("\n");
+  const arquivo = new Blob([corpo], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(arquivo);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `movimentacoes-${resumo?.inicio || "semana"}.txt`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 export default function MovimentacoesPage() {
@@ -39,6 +65,8 @@ export default function MovimentacoesPage() {
   const [ficha, setFicha] = useState<any>(null);
   const [erroSerial, setErroSerial] = useState("");
   const [buscando, setBuscando] = useState(false);
+  const [clienteAberto, setClienteAberto] = useState<any>(null);
+  const [registrosAbertos, setRegistrosAbertos] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setTermoBuscaReal(buscaSerial), 500);
@@ -92,7 +120,7 @@ export default function MovimentacoesPage() {
     <main className="p-10 max-w-7xl mx-auto min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors">
       <h1 className="text-3xl font-bold text-orange-600">Movimentações</h1>
       <p className="text-sm text-gray-500 mt-1 font-medium">
-        Trocas, vínculos novos e desvínculos da semana. A mesma máquina que entra e sai não altera o saldo.
+        Registro de quem vinculou, desvinculou ou excluiu cada máquina. O saldo da semana continua separado.
       </p>
 
       <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mt-6 mb-8 relative dark:bg-gray-900 dark:border-gray-800 transition-colors">
@@ -128,6 +156,19 @@ export default function MovimentacoesPage() {
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Fornecedor: {ficha.fornecedor_nome || "Nenhum"} · Parceiro: {ficha.adquirente_nome || "Nenhum"}
           </p>
+          {ficha.excluida && (
+            <p className="text-sm text-red-600 mt-2">Esta máquina foi excluída. O serial permanece no histórico.</p>
+          )}
+          {(ficha.logs || []).length > 0 && (
+            <ul className="mt-3 text-sm text-gray-800 dark:text-gray-200">
+              {ficha.logs.map((item: any, indice: number) => (
+                <li key={`${item.quando}-${item.tipo}-${indice}`}>
+                  {quandoTexto(item.quando)} · {item.usuario_nome || "Usuário não identificado"} · {ROTULO[item.tipo] || item.tipo} · {item.numero_serial}
+                  {item.cliente_nome ? ` · ${item.cliente_nome}` : ""}
+                </li>
+              ))}
+            </ul>
+          )}
           <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-3">Últimos 3 vínculos</p>
           {(ficha.ultimos_vinculos || []).length === 0 && (
             <p className="text-sm text-gray-500">Nenhum vínculo registrado.</p>
@@ -135,7 +176,7 @@ export default function MovimentacoesPage() {
           <ul className="mt-1 text-sm text-gray-800 dark:text-gray-200">
             {(ficha.ultimos_vinculos || []).map((item: any, indice: number) => (
               <li key={`${item.quando}-${item.mid}-${indice}`}>
-                {quandoTexto(item.quando)} · {item.cliente_nome || "Cliente removido"} · MID {item.mid || "sem MID"}
+                {quandoTexto(item.quando)} · {item.usuario_nome || "Usuário não identificado"} · {item.cliente_nome || "Cliente removido"} · MID {item.mid || "sem MID"}
               </li>
             ))}
           </ul>
@@ -163,10 +204,18 @@ export default function MovimentacoesPage() {
       </div>
 
       {resumo?.totais && (
-        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-6">
+        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4">
           Na semana: vínculos novos {resumo.totais.vinculos_novos} · desvínculos {resumo.totais.desvinculos} · trocas {resumo.totais.trocas}
         </p>
       )}
+
+      <button
+        type="button"
+        onClick={() => setRegistrosAbertos(true)}
+        className="mb-8 bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2.5 px-5 rounded-lg text-sm"
+      >
+        Registros da semana
+      </button>
 
       {carregando && <p className="text-orange-600 font-medium animate-pulse">Carregando resumo...</p>}
 
@@ -174,28 +223,87 @@ export default function MovimentacoesPage() {
         <p className="text-gray-500">Nenhuma movimentação nesta semana.</p>
       )}
 
-      {(resumo?.clientes || []).map((cliente: any) => (
-        <section key={cliente.cliente_id} className="mb-6 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5">
-          <h2 className="font-bold text-lg text-gray-900 dark:text-white">{cliente.cliente_nome}</h2>
-          {cliente.blocos.map((bloco: any) => (
-            <div key={bloco.bloco} className="mt-3">
-              <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                {bloco.bloco === "cliente" ? "Cliente" : "Evento"}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {(resumo?.clientes || []).map((cliente: any) => {
+          const clienteBloco = (cliente.blocos || []).find((bloco: any) => bloco.bloco === "cliente");
+          return (
+            <button
+              key={cliente.cliente_id}
+              type="button"
+              onClick={() => setClienteAberto(cliente)}
+              className="text-left bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-orange-500 rounded-xl p-5 shadow-sm"
+            >
+              <h2 className="font-bold text-lg text-gray-900 dark:text-white truncate">{cliente.cliente_nome || "Cliente removido"}</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                Vínculos novos {clienteBloco?.vinculos_novos || 0} · Desvínculos {clienteBloco?.desvinculos || 0} · Trocas {clienteBloco?.trocas || 0}
               </p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Trocas {bloco.trocas} · Vínculos novos {bloco.vinculos_novos} · Desvínculos {bloco.desvinculos}
-              </p>
-              <ul className="mt-2 text-sm text-gray-800 dark:text-gray-200">
-                {bloco.detalhe.map((item: any) => (
-                  <li key={`${item.numero_serial}-${item.situacao}`}>
-                    {item.numero_serial} · {ROTULO[item.situacao] || item.situacao}
-                  </li>
-                ))}
-              </ul>
+              <p className="mt-4 text-xs font-bold text-orange-600">Ver detalhes →</p>
+            </button>
+          );
+        })}
+      </div>
+
+      {clienteAberto && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm p-4">
+          <div className="flex min-h-full items-center justify-center">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 w-full max-w-lg p-8 my-8 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{clienteAberto.cliente_nome || "Cliente removido"}</h2>
+                <button type="button" onClick={() => setClienteAberto(null)} className="text-red-400 hover:text-red-600 text-xl font-bold bg-red-100 h-8 w-8 rounded-full">✕</button>
+              </div>
+              {(clienteAberto.blocos || []).map((bloco: any) => (
+                <div key={bloco.bloco} className="mb-5">
+                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                    {bloco.bloco === "cliente" ? "Cliente" : "Evento"}
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Trocas {bloco.trocas} · Vínculos novos {bloco.vinculos_novos} · Desvínculos {bloco.desvinculos}
+                  </p>
+                  <ul className="mt-2 text-sm text-gray-800 dark:text-gray-200">
+                    {(bloco.detalhe || []).map((item: any) => (
+                      <li key={`${item.numero_serial}-${item.situacao}`}>{item.numero_serial} · {ROTULO[item.situacao] || item.situacao}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </div>
-          ))}
-        </section>
-      ))}
+          </div>
+        </div>
+      )}
+
+      {registrosAbertos && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm p-4">
+          <div className="flex min-h-full items-center justify-center">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 w-full max-w-2xl p-8 my-8 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-6 gap-3">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Registros da semana</h2>
+                  <p className="text-xs text-gray-500 mt-1">{resumo ? `${resumo.inicio} a ${resumo.fim}` : semana}</p>
+                </div>
+                <button type="button" onClick={() => setRegistrosAbertos(false)} className="text-red-400 hover:text-red-600 text-xl font-bold bg-red-100 h-8 w-8 rounded-full">✕</button>
+              </div>
+              {(resumo?.logs || []).length === 0 ? (
+                <p className="text-sm text-gray-500">Nenhum registro nesta semana.</p>
+              ) : (
+                <ul className="text-sm text-gray-800 dark:text-gray-200 space-y-2">
+                  {resumo.logs.map((item: any, indice: number) => (
+                    <li key={`${item.quando}-${item.numero_serial}-${item.tipo}-${indice}`} className="border border-gray-200 dark:border-gray-800 rounded-lg p-3">
+                      {linhaRegistro(item)}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <button
+                type="button"
+                onClick={() => baixarRegistros(resumo)}
+                className="mt-6 bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2.5 px-5 rounded-lg text-sm"
+              >
+                Baixar TXT
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

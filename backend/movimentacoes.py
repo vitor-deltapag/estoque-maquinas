@@ -9,16 +9,20 @@ ENTRADA = {"VINCULO_CLIENTE": "cliente", "ENTRADA_EVENTO": "evento"}
 SAIDA = {"DESVINCULO_CLIENTE": "cliente", "SAIDA_EVENTO": "evento"}
 
 
-def registrar(db, *, tipo, dispositivo, cliente_id, evento_id=None, created_at=None):
-    if not cliente_id:
+def registrar(db, *, tipo, dispositivo, cliente_id=None, evento_id=None, created_at=None, usuario=None):
+    if tipo != "EXCLUSAO" and not cliente_id:
+        return
+    serial = (dispositivo.numero_serial or "").strip()
+    if not serial:
         return
     db.add(models.MovimentacaoMaquina(
         tipo=tipo,
         dispositivo_id=dispositivo.id,
         cliente_id=cliente_id,
         evento_id=evento_id,
-        numero_serial=dispositivo.numero_serial,
+        numero_serial=serial,
         modelo=dispositivo.modelo or "",
+        usuario_nome=(getattr(usuario, "nome", None) or None),
         created_at=created_at or datetime.now(),
     ))
 
@@ -105,7 +109,32 @@ def resumo_semana(db, dia: date):
         "fim": (fim - timedelta(days=1)).date().isoformat(),
         "totais": totais,
         "clientes": list(clientes.values()),
+        "logs": [_item_log(db, linha) for linha in sorted(linhas, key=lambda item: (item.created_at or datetime.min, item.id), reverse=True)],
     }
+
+
+def _item_log(db, linha):
+    cliente = db.get(models.Cliente, linha.cliente_id) if linha.cliente_id else None
+    quando = linha.created_at.isoformat() if isinstance(linha.created_at, datetime) else linha.created_at
+    return {
+        "quando": quando,
+        "tipo": linha.tipo,
+        "numero_serial": linha.numero_serial,
+        "modelo": linha.modelo,
+        "usuario_nome": linha.usuario_nome,
+        "cliente_nome": cliente.nome if cliente else None,
+    }
+
+
+def _logs_do_serial(db, serial: str):
+    linhas = (
+        db.query(models.MovimentacaoMaquina)
+        .filter(func.upper(models.MovimentacaoMaquina.numero_serial) == serial)
+        .order_by(models.MovimentacaoMaquina.created_at.desc(), models.MovimentacaoMaquina.id.desc())
+        .limit(50)
+        .all()
+    )
+    return [_item_log(db, linha) for linha in linhas]
 
 
 def consulta_maquina(db, serial: str):
@@ -120,7 +149,22 @@ def consulta_maquina(db, serial: str):
         .first()
     )
     if not dispositivo:
-        return None
+        logs = _logs_do_serial(db, serial)
+        if not logs:
+            return None
+        return {
+            "numero_serial": serial,
+            "modelo": logs[0]["modelo"],
+            "excluida": True,
+            "estado": None,
+            "aquisicao": None,
+            "em_evento": False,
+            "cliente_atual": None,
+            "fornecedor_nome": None,
+            "adquirente_nome": None,
+            "ultimos_vinculos": [],
+            "logs": logs,
+        }
 
     linhas = (
         db.query(models.MovimentacaoMaquina)
@@ -138,6 +182,7 @@ def consulta_maquina(db, serial: str):
             "quando": quando,
             "cliente_nome": cliente.nome if cliente else None,
             "mid": cliente.mid if cliente else None,
+            "usuario_nome": linha.usuario_nome,
         })
 
     atual = dispositivo.cliente_rel

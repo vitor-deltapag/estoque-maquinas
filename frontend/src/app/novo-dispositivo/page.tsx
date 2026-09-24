@@ -101,8 +101,6 @@ function DropdownCustomizado({ name, value, options, placeholder, onChange }: Dr
 export default function NovoDispositivo() {
   const router = useRouter();
 
-  const [clientes, setClientes] = useState<any[]>([]);
-  const [fornecedores, setFornecedores] = useState<any[]>([]);
   const [adquirentes, setAdquirentes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [mensagem, setMensagem] = useMensagem();
@@ -122,13 +120,7 @@ export default function NovoDispositivo() {
   useEffect(() => {
     async function carregarDados() {
       try {
-        const [resClientes, resFornecedores, resAdquirentes] = await Promise.all([
-          apiFetch(`/clientes`),
-          apiFetch(`/fornecedores`),
-          apiFetch(`/clientes?parceiro=true&limit=500`),
-        ]);
-        if (resClientes.ok) setClientes(await resClientes.json());
-        if (resFornecedores.ok) setFornecedores(await resFornecedores.json());
+        const resAdquirentes = await apiFetch(`/clientes?parceiro=true&limit=500`);
         if (resAdquirentes.ok) setAdquirentes(await resAdquirentes.json());
       } catch (error) {
         console.error("Erro ao carregar os dados:", error);
@@ -138,26 +130,48 @@ export default function NovoDispositivo() {
   }, []);
 
   useEffect(() => {
-    if (!formData.mid) {
+    const midDigitado = formData.mid.trim();
+    if (!midDigitado) {
       setNomeClienteVisual("");
       setClienteInativo(false);
+      setFormData(prev => (prev.fornecedor_nome ? { ...prev, fornecedor_nome: "" } : prev));
       return;
     }
-    const midDigitado = formData.mid.trim();
-    const encontrado = clientes.find(c => c.mid === midDigitado);
-    if (encontrado) {
-      const inativo = Boolean(encontrado.status) && encontrado.status.toUpperCase() !== "ATIVO";
-      setClienteInativo(inativo);
-      setNomeClienteVisual(
-        inativo
-          ? `⚠️ ${encontrado.nome} está inativo na Movingpay`
-          : `${encontrado.nome} (${encontrado.nome_fantasia || "Sem Nome Fantasia"})`
-      );
-    } else {
-      setClienteInativo(false);
-      setNomeClienteVisual("⚠️ MID não localizado no sistema");
-    }
-  }, [formData.mid, clientes]);
+    const ac = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const response = await apiFetch(`/clientes?search=${encodeURIComponent(midDigitado)}`, { signal: ac.signal });
+        if (!response.ok) return;
+        const dados = await response.json();
+        const encontrado = dados.find((c: any) => c.mid === midDigitado);
+        if (encontrado) {
+          const inativo = Boolean(encontrado.status) && encontrado.status.toUpperCase() !== "ATIVO";
+          setClienteInativo(inativo);
+          setNomeClienteVisual(
+            inativo
+              ? `⚠️ ${encontrado.nome} está inativo na Movingpay`
+              : `${encontrado.nome} (${encontrado.nome_fantasia || "Sem Nome Fantasia"})`
+          );
+          setFormData(prev => (
+            prev.fornecedor_nome === (encontrado.distribuidor_nome || "")
+              ? prev
+              : { ...prev, fornecedor_nome: encontrado.distribuidor_nome || "" }
+          ));
+        } else {
+          setClienteInativo(false);
+          setNomeClienteVisual("⚠️ MID não localizado no sistema");
+          setFormData(prev => (prev.fornecedor_nome ? { ...prev, fornecedor_nome: "" } : prev));
+        }
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        console.error("Erro ao validar o MID:", error);
+      }
+    }, 500);
+    return () => {
+      clearTimeout(timer);
+      ac.abort();
+    };
+  }, [formData.mid]);
 
   // Função original para inputs normais
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -321,11 +335,11 @@ export default function NovoDispositivo() {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2 dark:text-gray-300 transition-colors">Digitar Nome do Fornecedor</label>
-            <input type="text" name="fornecedor_nome" list="lista-fornecedores" value={formData.fornecedor_nome} onChange={handleChange} placeholder="Ex: VAREJO CONECTA" className="w-full bg-white border border-gray-300 rounded-lg p-2.5 text-black font-medium focus:ring-2 focus:ring-orange-500 outline-none dark:bg-gray-900 dark:border-gray-700 dark:text-white transition-colors" />
-            <datalist id="lista-fornecedores">
-              {fornecedores.map((f: any) => <option key={f.id} value={f.nome} />)}
-            </datalist>
+            <label className="block text-sm font-semibold text-gray-700 mb-2 dark:text-gray-300 transition-colors">Distribuidor</label>
+            <p className="w-full border border-gray-200 rounded-lg p-2.5 text-black font-semibold bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-white">
+              {formData.fornecedor_nome || "—"}
+            </p>
+            <p className="mt-1 text-xs text-gray-500">Acompanha o MID do cliente. Não é possível alterar.</p>
           </div>
 
           <hr className="border-gray-200 dark:border-gray-800 transition-colors" />

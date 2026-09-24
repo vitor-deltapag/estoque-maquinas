@@ -25,3 +25,21 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.recharts-tooltip-cursor,
+.recharts-wrapper:focus,
+.recharts-surface:focus {
+  outline: none;
+}
+
+.recharts-tooltip-cursor {
+  display: none;
+}
+
+.recharts-default-tooltip,
+.recharts-tooltip-label,
+.recharts-tooltip-item,
+.recharts-tooltip-item-name,
+.recharts-tooltip-item-value {
+  color: #111827 !important;
+}

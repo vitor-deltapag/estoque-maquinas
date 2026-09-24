@@ -6,74 +6,9 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "../../lib/api";
 import { useMensagem } from "../../components/ToastErro";
 import { classeCorModelo, classeMostradorEstado, classeMostradorModelo, modeloPorSerial, rotuloEstado } from "../../lib/modeloSerial";
-import { classeCorAquisicao, OPCOES_AQUISICAO, rotuloAquisicao } from "../../lib/aquisicao";
+import { classeCorAquisicao, rotuloAquisicao } from "../../lib/aquisicao";
 import { filtrosDaUrl, queryFiltros } from "../../lib/filtroDispositivos";
 import MenuFiltroDispositivos from "../../components/MenuFiltroDispositivos";
-
-// ============================================================================
-// COMPONENTE AUXILIAR: DROPDOWN CUSTOMIZADO COM HOVER LARANJA PARA O MODAL
-// ============================================================================
-interface Option {
-  value: string;
-  label: string;
-}
-
-interface DropdownProps {
-  name: string;
-  value: string;
-  options: Option[];
-  placeholder: string;
-  onChange: (name: string, value: string) => void;
-}
-
-function DropdownCustomizado({ name, value, options, placeholder, onChange }: DropdownProps) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  const handleSelect = (optionValue: string) => {
-    onChange(name, optionValue);
-    setIsOpen(false);
-  };
-
-  const selectedLabel = options.find((opt) => opt.value === value)?.label || placeholder;
-
-  return (
-    <div className="relative w-full font-sans">
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-white border border-gray-300 rounded-lg p-2.5 font-medium focus:ring-2 focus:ring-orange-500 outline-none flex justify-between items-center text-left text-sm dark:bg-gray-800 dark:border-gray-700 transition-colors"
-      >
-        <span className={value ? "text-gray-900 font-medium dark:text-white" : "text-gray-500"}>{selectedLabel}</span>
-        <svg
-          className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-          fill="none" stroke="currentColor" viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {isOpen && (
-        <>
-          {/* Overlay para fechar se clicar fora do dropdown, mas mantém o modal aberto */}
-          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)}></div>
-
-          <ul className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto dark:bg-gray-900 dark:border-gray-800 transition-colors">
-            {options.map((opt) => (
-              <li
-                key={opt.value}
-                onClick={() => handleSelect(opt.value)}
-                className="p-2.5 text-gray-900 cursor-pointer hover:bg-orange-500 hover:text-white transition-colors text-sm font-medium dark:text-white"
-              >
-                {opt.label}
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-    </div>
-  );
-}
-// ============================================================================
 
 function estadoEspecial(estado: string) {
   return estado === "REPARO" || estado === "MAQUINA PERDIDA";
@@ -88,8 +23,6 @@ function GerenciamentoDispositivos() {
 
   // Estados do sistema
   const [dispositivos, setDispositivos] = useState<any[]>([]);
-  const [fornecedores, setFornecedores] = useState<any[]>([]);
-  const [adquirentes, setAdquirentes] = useState<any[]>([]);
 
   // Estados de Busca e Paginação (Alta Performance)
   const [buscaSerial, setBuscaSerial] = useState("");
@@ -119,23 +52,6 @@ function GerenciamentoDispositivos() {
   const [midOriginal, setMidOriginal] = useState("");
   const [clienteInativo, setClienteInativo] = useState(false);
   const modeloDaFicha = modeloPorSerial(formData.numero_serial);
-
-  // 1. CARREGA FORNECEDORES E PARCEIROS 1 VEZ
-  useEffect(() => {
-    async function carregarDadosBase() {
-      try {
-        const [resFornecedores, resAdquirentes] = await Promise.all([
-          apiFetch(`/fornecedores`),
-          apiFetch(`/clientes?parceiro=true&limit=500`),
-        ]);
-        if (resFornecedores.ok) setFornecedores(await resFornecedores.json());
-        if (resAdquirentes.ok) setAdquirentes(await resAdquirentes.json());
-      } catch (error) {
-        console.error("Erro ao carregar dados base:", error);
-      }
-    }
-    carregarDadosBase();
-  }, []);
 
   useEffect(() => {
     setPaginaAtual(1);
@@ -212,14 +128,14 @@ function GerenciamentoDispositivos() {
 
   // VALIDAÇÃO INTELIGENTE DE MID NO SERVIDOR
   useEffect(() => {
-    if (!formData.mid) {
+    if (!formData.mid.trim()) {
       setNomeClienteVisual("");
       setClienteInativo(false);
-      setFormData(prev => (
-        estadoEspecial(prev.estado) || prev.estado === "ESTOQUE"
-          ? prev
-          : { ...prev, estado: "ESTOQUE" }
-      ));
+      setFormData(prev => {
+        const estado = estadoEspecial(prev.estado) || prev.estado === "ESTOQUE" ? prev.estado : "ESTOQUE";
+        if (prev.fornecedor_nome === "" && prev.estado === estado) return prev;
+        return { ...prev, fornecedor_nome: "", estado };
+      });
       return;
     }
 
@@ -232,16 +148,18 @@ function GerenciamentoDispositivos() {
 
           if (clienteExato) {
             const inativo = Boolean(clienteExato.status) && clienteExato.status.toUpperCase() !== "ATIVO";
+            const distribuidor = clienteExato.distribuidor_nome || "";
             setClienteInativo(inativo);
             setNomeClienteVisual(inativo ? `⚠️ ${clienteExato.nome} está inativo na Movingpay` : `✅ ${clienteExato.nome}`);
-            setFormData(prev => (
-              estadoEspecial(prev.estado) || prev.estado === "NO CLIENTE"
-                ? prev
-                : { ...prev, estado: "NO CLIENTE" }
-            ));
+            setFormData(prev => {
+              const estado = estadoEspecial(prev.estado) || prev.estado === "NO CLIENTE" ? prev.estado : "NO CLIENTE";
+              if (prev.fornecedor_nome === distribuidor && prev.estado === estado) return prev;
+              return { ...prev, fornecedor_nome: distribuidor, estado };
+            });
           } else {
             setClienteInativo(false);
             setNomeClienteVisual("⚠️ MID não cadastrado no sistema");
+            setFormData(prev => (prev.fornecedor_nome ? { ...prev, fornecedor_nome: "" } : prev));
           }
         }
       } catch (error) {
@@ -253,16 +171,6 @@ function GerenciamentoDispositivos() {
   }, [formData.mid]);
 
   // FUNÇÃO AUXILIAR: Modifica o estado do formulário vindo dos dropdowns customizados
-  const handleDropdownChange = (name: string, value: string) => {
-    if (name === "isParceiro") {
-      const sim = value === "sim";
-      setIsParceiro(sim);
-      if (!sim) setFormData(prev => ({ ...prev, adquirente_nome: "" }));
-      return;
-    }
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
   const recarregarLista = () => {
     setTermoBuscaReal(termoBuscaReal + " ");
     setTimeout(() => setTermoBuscaReal(termoBuscaReal.trim()), 1000);
@@ -284,14 +192,6 @@ function GerenciamentoDispositivos() {
       setMensagemModal({
         tipo: "erro",
         texto: "Máquina vinculada a um MID e com Fornecedor não pode permanecer no status 'ESTOQUE'."
-      });
-      return false;
-    }
-
-    if (isParceiro && !formData.adquirente_nome) {
-      setMensagemModal({
-        tipo: "erro",
-        texto: "Selecione o parceiro ou desmarque a opção."
       });
       return false;
     }
@@ -595,21 +495,18 @@ function GerenciamentoDispositivos() {
 
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Aquisição</label>
-                  <DropdownCustomizado
-                    name="aquisicao"
-                    value={formData.aquisicao}
-                    onChange={handleDropdownChange}
-                    placeholder="Selecione..."
-                    options={OPCOES_AQUISICAO}
-                  />
+                  <p className="w-full border border-gray-200 rounded-lg p-2.5 text-gray-900 font-semibold bg-gray-50 text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white">
+                    {rotuloAquisicao(formData.aquisicao) || "—"}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">Definida no cadastro da máquina. Não é possível alterar.</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Nome do Fornecedor</label>
-                  <input type="text" list="modal-fornecedores" value={formData.fornecedor_nome} onChange={e => setFormData({ ...formData, fornecedor_nome: e.target.value })} className="w-full bg-white border border-gray-300 rounded-lg p-2.5 text-gray-900 font-medium outline-none focus:ring-2 focus:ring-orange-500 text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white transition-colors" />
-                  <datalist id="modal-fornecedores">
-                    {fornecedores.map((f: any) => <option key={f.id} value={f.nome} />)}
-                  </datalist>
+                  <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Distribuidor</label>
+                  <p className="w-full border border-gray-200 rounded-lg p-2.5 text-gray-900 font-semibold bg-gray-50 text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white">
+                    {formData.fornecedor_nome || "—"}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">Acompanha o MID do cliente. Não é possível alterar.</p>
                 </div>
               </div>
 
@@ -626,16 +523,10 @@ function GerenciamentoDispositivos() {
               <div className="border-t pt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Máquina de parceiro</label>
-                  <DropdownCustomizado
-                    name="isParceiro"
-                    value={isParceiro ? "sim" : "nao"}
-                    onChange={handleDropdownChange}
-                    placeholder=""
-                    options={[
-                      { value: "nao", label: "Não" },
-                      { value: "sim", label: "Sim" },
-                    ]}
-                  />
+                  <p className="w-full border border-gray-200 rounded-lg p-2.5 text-gray-900 font-semibold bg-gray-50 text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white">
+                    {isParceiro ? (formData.adquirente_nome || "Sim") : "Não"}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">Definida no cadastro da máquina. Não é possível alterar.</p>
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Em evento</label>
@@ -644,22 +535,6 @@ function GerenciamentoDispositivos() {
                   </p>
                   <p className="mt-1 text-xs text-gray-500">Alterar pela aba Eventos.</p>
                 </div>
-                {isParceiro && (
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Parceiro</label>
-                    {adquirentes.length === 0 ? (
-                  <p className="text-sm text-amber-600">Nenhum cliente marcado como parceiro. Abra o cliente e escolha Parceiro: Sim.</p>
-                    ) : (
-                      <DropdownCustomizado
-                        name="adquirente_nome"
-                        value={formData.adquirente_nome}
-                        onChange={handleDropdownChange}
-                        placeholder="Selecione o parceiro..."
-                        options={adquirentes.filter((a: any) => a.nome).map((a: any) => ({ value: a.nome, label: a.nome }))}
-                      />
-                    )}
-                  </div>
-                )}
               </div>
 
               <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-6 border-t mt-4">
