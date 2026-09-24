@@ -69,6 +69,18 @@ Substitui todos os campos do create (incluindo `parceiro`). 404 / 400 MID duplic
 
 400 `Não é possível excluir um cliente que possui dispositivos vinculados.` (FK).
 
+### POST `/clientes/sincronizar`
+
+Importa os estabelecimentos da Movingpay (`GET /estabelecimentos`, todas as páginas) e faz upsert pelo MID. O MID sai de `codigoCliente` (depois `mid`, depois `codigoEC`). Grava `nome` (razão social), `nome_fantasia` e `status` (`situacao` 0 BLOQUEADO, 1 ATIVO, 2 ANALISE, 3 DOCUMENTO_PENDENTE, 4 DESCREDENCIADO). Não altera `parceiro` e não apaga cliente local ausente na Movingpay.
+
+Query `forcar` default `false`. Sem `forcar`, roda no máximo uma vez a cada 10 minutos por processo. Uma sincronização por vez: a segunda chamada simultânea volta na hora.
+
+**200:** `criados`, `atualizados`, `ignorados` (sem MID), `falhas` (lista de MIDs), `ignorado` (`null`, `"sincronizado há pouco"` ou `"em andamento"`).
+
+400 sem `MOVINGPAY_EMAIL`, `MOVINGPAY_PASSWORD` ou `MOVINGPAY_CUSTOMER_ID`. 502 se a Movingpay não responder.
+
+A tela de clientes chama sem `forcar` ao abrir e com `forcar=true` no botão "Atualizar da Movingpay". O cadastro manual (`POST /clientes`) continua na API, mas sem link na interface.
+
 ---
 
 ## Parceiros

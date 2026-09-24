@@ -14,14 +14,6 @@ const CARDS = [
     texto: "Cadastrar uma ou várias máquinas no estoque.",
   },
   {
-    href: "/novo-cliente",
-    badge: "Cadastros",
-    badgeClass: "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30",
-    buttonClass: "bg-purple-600 hover:bg-purple-700",
-    titulo: "Cliente",
-    texto: "Cadastrar cliente com MID, razão social e fantasia.",
-  },
-  {
     href: "/novo-fornecedor",
     badge: "Cadastros",
     badgeClass: "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30",

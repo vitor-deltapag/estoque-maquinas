@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { apiFetch } from "../../lib/api";
-import { useMensagem } from "../../components/ToastErro";
+import { useMensagem, useToastErro } from "../../components/ToastErro";
 import DropdownCustomizado from "../../components/DropdownCustomizado";
 
 export default function ListaClientes() {
@@ -26,6 +25,11 @@ export default function ListaClientes() {
   const [loadingSalvar, setLoadingSalvar] = useState(false);
   const [loadingExcluir, setLoadingExcluir] = useState(false);
   const [mensagemModal, setMensagemModal] = useMensagem();
+
+  const mostrarErro = useToastErro();
+  const [sincronizando, setSincronizando] = useState(false);
+  const [resumoSync, setResumoSync] = useState("");
+  const [recarga, setRecarga] = useState(0);
 
   // Dados do formulário interno do Pop-up
   const [formData, setFormData] = useState({
@@ -65,7 +69,42 @@ export default function ListaClientes() {
       }
     }
     buscarClientes();
-  }, [termoBuscaReal, paginaAtual]);
+  }, [termoBuscaReal, paginaAtual, recarga]);
+
+  useEffect(() => {
+    apiFetch("/clientes/sincronizar", { method: "POST" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((corpo) => {
+        if (corpo?.criados || corpo?.atualizados) setRecarga((n) => n + 1);
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSincronizar = async () => {
+    setSincronizando(true);
+    setResumoSync("");
+    try {
+      const res = await apiFetch("/clientes/sincronizar?forcar=true", { method: "POST" });
+      const corpo = await res.json();
+      if (!res.ok) {
+        mostrarErro(corpo.detail || "Erro ao sincronizar com a Movingpay.");
+        return;
+      }
+      if (corpo.ignorado === "em andamento") {
+        setResumoSync("Já existe uma sincronização em andamento. Tente de novo em instantes.");
+        return;
+      }
+      const partes = [`${corpo.criados} novos`, `${corpo.atualizados} atualizados`];
+      if (corpo.ignorados) partes.push(`${corpo.ignorados} sem MID`);
+      if (corpo.falhas?.length) partes.push(`${corpo.falhas.length} com falha`);
+      setResumoSync(`Movingpay: ${partes.join(", ")}.`);
+      setRecarga((n) => n + 1);
+    } catch {
+      mostrarErro("Erro de conexão com o servidor.");
+    } finally {
+      setSincronizando(false);
+    }
+  };
 
   // 3. ABRE O POP-UP AO CLICAR NO CARD
   const handleCardClick = (cliente: any) => {
@@ -162,19 +201,24 @@ export default function ListaClientes() {
   return (
     <main className="p-10 max-w-7xl mx-auto relative min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors">
 
-      {/* TOPO: TÍTULO E BOTÃO DE CRIAR */}
+      {/* TOPO: TÍTULO E BOTÃO DE ATUALIZAR */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-orange-600">Clientes</h1>
-          <p className="text-sm text-gray-500 mt-1 font-medium">Gerencie as empresas e MIDs vinculados às máquinas.</p>
+          <p className="text-sm text-gray-500 mt-1 font-medium">Clientes vêm da Movingpay pelo MID. A lista se atualiza ao abrir esta tela.</p>
+          {resumoSync && (
+            <p className="text-sm text-gray-700 dark:text-gray-300 mt-2 font-medium">{resumoSync}</p>
+          )}
         </div>
 
-        <Link
-          href="/novo-cliente"
-          className="w-full md:w-auto text-center bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2.5 px-5 rounded-lg text-sm shadow-sm transition-colors"
+        <button
+          type="button"
+          onClick={handleSincronizar}
+          disabled={sincronizando}
+          className="w-full md:w-auto text-center bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2.5 px-5 rounded-lg text-sm shadow-sm transition-colors disabled:opacity-50"
         >
-          + Novo Cliente
-        </Link>
+          {sincronizando ? "Atualizando..." : "Atualizar da Movingpay"}
+        </button>
       </div>
 
       {/* BARRA DE PESQUISA OTIMIZADA */}
@@ -295,35 +339,25 @@ export default function ListaClientes() {
             <form onSubmit={handleSalvarEdicao} className="space-y-5">
 
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Razão Social (Nome) *</label>
-                <input
-                  required
-                  type="text"
-                  value={formData.nome}
-                  onChange={e => setFormData({ ...formData, nome: e.target.value })}
-                  className="w-full bg-white border border-gray-300 rounded-lg p-2.5 text-black font-bold outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-900 dark:border-gray-700 dark:text-white transition-colors"
-                />
+                <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Razão Social (Nome)</label>
+                <p className="w-full border border-gray-200 rounded-lg p-2.5 text-gray-900 font-bold bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-white">
+                  {formData.nome || "—"}
+                </p>
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Nome Fantasia (Opcional)</label>
-                <input
-                  type="text"
-                  value={formData.nome_fantasia}
-                  onChange={e => setFormData({ ...formData, nome_fantasia: e.target.value })}
-                  className="w-full bg-white border border-gray-300 rounded-lg p-2.5 text-black font-semibold outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-900 dark:border-gray-700 dark:text-white transition-colors"
-                />
+                <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Nome Fantasia</label>
+                <p className="w-full border border-gray-200 rounded-lg p-2.5 text-gray-900 font-semibold bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-white">
+                  {formData.nome_fantasia || "—"}
+                </p>
               </div>
 
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Número MID</label>
-                <input
-                  type="text"
-                  value={formData.mid}
-                  onChange={e => setFormData({ ...formData, mid: e.target.value })}
-                  placeholder="Ex: 123456789"
-                  className="w-full bg-white border border-gray-300 rounded-lg p-2.5 text-black font-semibold outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-900 dark:border-gray-700 dark:text-white transition-colors"
-                />
+                <p className="w-full border border-gray-200 rounded-lg p-2.5 text-gray-900 font-semibold bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-white">
+                  {formData.mid || "—"}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">Razão social, fantasia e MID vêm da Movingpay. Não é possível alterar aqui.</p>
               </div>
 
               <div>

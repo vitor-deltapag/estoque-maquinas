@@ -14,6 +14,9 @@ Copiar `.env.example`. Nunca commitar o ficheiro preenchido.
 | `CORS_ORIGINS` | Browser | Lista vírgula. Default no código se vazia: localhost e 127.0.0.1 porta 3000. Incluir a origem exacta (3000 vs 3001). |
 | `ADMIN_RESET_EMAIL` | `reset_pass.py` | E-mail alvo no Auth. |
 | `ADMIN_RESET_PASSWORD` | `reset_pass.py` | Nova senha. Não precisa no processo uvicorn. |
+| `MOVINGPAY_EMAIL` | `POST /clientes/sincronizar` | Conta de serviço da integração na Movingpay, não a senha pessoal de quem usa o estoque. |
+| `MOVINGPAY_PASSWORD` | `POST /clientes/sincronizar` | Senha dessa conta. Token de 360 min fica em memória e é renovado sozinho. |
+| `MOVINGPAY_CUSTOMER_ID` | `POST /clientes/sincronizar` | Id da empresa no console (topo da tela, antes do CNPJ). Deltapag = `149`. Vai no header `Customer`. |
 
 Exemplo de URL:
 

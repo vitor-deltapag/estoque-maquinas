@@ -157,7 +157,7 @@ export default function Header() {
                 <nav className="hidden md:flex space-x-4 lg:space-x-6 text-sm">
                   <Link href="/" className={isAtivo("/")}>Painel</Link>
                   <Link href="/dispositivos" className={isAtivo("/dispositivos")}>Máquinas</Link>
-                  <Link href="/movimentacoes" className={isAtivo("/movimentacoes")}>Movimentações(em breve)</Link>
+                  <Link href="/movimentacoes" className={isAtivo("/movimentacoes")}>Movimentações</Link>
                   <Link href="/eventos" className={isAtivo("/eventos")}>Eventos</Link>
                   <Link href="/parceiros" className={isAtivo("/parceiros")}>Parceiros</Link>
                   <Link href="/clientes" className={isAtivo("/clientes")}>Clientes</Link>

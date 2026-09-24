@@ -8,3 +8,4 @@ PyJWT==2.13.0
 cryptography==49.0.0
 alembic==1.16.5
 slowapi==0.1.9
+httpx==0.28.1

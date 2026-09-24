@@ -8,6 +8,7 @@ from database import get_db
 from deps import get_current_user
 from helpers import empty_to_none
 from log import logger
+from movingpay import MovingpayErro, sincronizar_clientes
 import models
 import schemas
 
@@ -102,3 +103,18 @@ def deletar_cliente(item_id: int, db: Session = Depends(get_db), user: models.Da
         db.rollback()
         raise HTTPException(status_code=400, detail="Não é possível excluir um cliente que possui dispositivos vinculados.")
     return
+
+
+@router.post("/clientes/sincronizar")
+def sincronizar(
+    forcar: bool = False,
+    db: Session = Depends(get_db),
+    user: models.DadosUsuario = Depends(get_current_user),
+):
+    try:
+        return sincronizar_clientes(db, forcar=forcar)
+    except MovingpayErro as erro:
+        raise HTTPException(status_code=400, detail=str(erro))
+    except Exception:
+        logger.exception("Erro ao sincronizar clientes da Movingpay")
+        raise HTTPException(status_code=502, detail="A Movingpay não respondeu. Tente novamente.")
