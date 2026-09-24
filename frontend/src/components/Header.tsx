@@ -132,15 +132,19 @@ export default function Header() {
   }
 
   const isAtivo = (caminho: string) => {
-    const ativo = caminho === "/cadastros"
-      ? pathname === "/cadastros" || (pathname.startsWith("/novo-") && !pathname.startsWith("/novo-cliente"))
-      : caminho === "/eventos"
-        ? pathname === "/eventos" || pathname.startsWith("/eventos/")
-        : caminho === "/clientes"
-          ? pathname === "/clientes" || pathname.startsWith("/editar-cliente") || pathname.startsWith("/novo-cliente")
-          : caminho === "/parceiros"
-            ? pathname === "/parceiros" || pathname.startsWith("/parceiros/")
-            : pathname === caminho;
+    const ativo = caminho === "/distribuidores"
+      ? pathname === "/distribuidores" || pathname.startsWith("/distribuidores/") || pathname === "/fornecedores" || pathname.startsWith("/novo-fornecedor")
+      : caminho === "/dispositivos"
+        ? pathname === "/dispositivos" || pathname.startsWith("/novo-dispositivo") || pathname.startsWith("/editar-dispositivo")
+        : caminho === "/eventos"
+          ? pathname === "/eventos" || pathname.startsWith("/eventos/")
+          : caminho === "/clientes"
+            ? pathname === "/clientes" || pathname.startsWith("/editar-cliente") || pathname.startsWith("/novo-cliente")
+            : caminho === "/parceiros"
+              ? pathname === "/parceiros" || pathname.startsWith("/parceiros/")
+              : caminho === "/usuarios"
+                ? pathname === "/usuarios" || pathname.startsWith("/novo-usuario")
+                : pathname === caminho;
             return ativo
             ? "text-orange-600 font-bold border-b-2 border-orange-600 pb-1"
             : "text-gray-600 dark:text-gray-300 hover:text-orange-500 dark:hover:text-orange-400 transition-colors font-medium pb-1";
@@ -161,7 +165,7 @@ export default function Header() {
                   <Link href="/eventos" className={isAtivo("/eventos")}>Eventos</Link>
                   <Link href="/parceiros" className={isAtivo("/parceiros")}>Parceiros</Link>
                   <Link href="/clientes" className={isAtivo("/clientes")}>Clientes</Link>
-                  <Link href="/cadastros" className={isAtivo("/cadastros")}>Cadastros</Link>
+                  <Link href="/distribuidores" className={isAtivo("/distribuidores")}>Distribuidores</Link>
                   {perfil === "ADMIN" && (
                     <Link href="/usuarios" className={isAtivo("/usuarios")}>Usuários</Link>
                   )}

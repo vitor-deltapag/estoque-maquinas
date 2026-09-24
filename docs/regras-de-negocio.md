@@ -105,6 +105,20 @@ Não há endpoint de “reabrir” nem de editar datas.
 
 Uma máquina só pode estar em **um** evento em andamento (`em_evento`). Depois de finalizar, pode entrar noutro lote.
 
+## Movimentação semanal
+
+Conta por cliente, de segunda a domingo, só o bloco de cliente (evento fica de fora do total).
+
+| Situação na semana | Vínculos novos | Desvínculos | Trocas |
+| --- | --- | --- | --- |
+| A mesma máquina entra e sai no mesmo cliente | 0 | 0 | 0 |
+| Uma máquina sai e outra entra no mesmo cliente | 0 | 0 | 1 |
+| A máquina sai de um cliente e entra em outro | 1 no destino | 1 na origem | 0 |
+| Só entra uma máquina | 1 | 0 | 0 |
+| Só sai uma máquina | 0 | 1 | 0 |
+
+O total da semana é a soma dessas linhas. A busca por serial lista os últimos 3 vínculos da máquina (`VINCULO_CLIENTE`), com o MID que o cliente tem hoje. Entrada de evento não entra nessa lista.
+
 ## Utilizadores
 
 | Condição | Resultado |

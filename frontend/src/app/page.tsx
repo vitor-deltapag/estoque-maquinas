@@ -128,11 +128,11 @@ export default function Home() {
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-all">
           <div>
             <span className="text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 py-1 px-2.5 rounded-full uppercase tracking-wider transition-colors">Cadastros</span>
-            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mt-3 transition-colors">Fornecedores</h2>
+            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mt-3 transition-colors">Distribuidores</h2>
             <p className="text-3xl font-black text-gray-900 dark:text-white mt-4 font-mono transition-colors">{metricas.fornecedores} <span className="text-sm font-medium text-gray-400 dark:text-gray-500 transition-colors">registrados</span></p>
           </div>
-          <Link href="/fornecedores" className="mt-6 block text-center bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition-colors">
-            Gerenciar Fornecedores →
+          <Link href="/distribuidores" className="mt-6 block text-center bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition-colors">
+            Gerenciar Distribuidores →
           </Link>
         </div>
       </div>

@@ -77,8 +77,8 @@ Lote: um MID + data início + data fim + N seriais. Ao digitar o MID, a UI confi
 **Parceiros (`/parceiros`)**  
 Aba no menu. Lista clientes com `parceiro=true`. Card abre ficha: nome, fantasia, MID, máquinas vinculadas **só leitura** (serial não se edita aqui). Alta em `/parceiros/novo`.
 
-**Cadastros (`/cadastros`)**  
-Hub para *criar*: máquina (uma ou em lote no mesmo formulário), cliente, fornecedor, parceiro (`/parceiros/novo`), usuário (se ADMIN).
+**Distribuidores (`/distribuidores`)**  
+Aba no menu. É a tabela `fornecedor`: nome e código. Card abre ficha para salvar ou excluir. Alta em `/distribuidores/novo`. `/fornecedores` redireciona para cá.
 
 **Usuários**  
 Só no menu se `GET /usuarios/me` devolver `perfil === "ADMIN"`. Cria o user no Supabase Auth e a linha em `dados_usuario`.
@@ -89,7 +89,7 @@ Perfis: **COMUM** (estoque) e **ADMIN** (estoque + usuários).
 
 ## Menu e rotas da UI
 
-Menu (`md+`): Painel · Máquinas · Eventos · Parceiros · Clientes · Cadastros · Usuários (admin).
+Menu (`md+`): Painel · Máquinas · Movimentações · Eventos · Parceiros · Clientes · Distribuidores · Usuários (admin).
 
 | Caminho | Ecrã |
 | --- | --- |
@@ -109,7 +109,8 @@ Menu (`md+`): Painel · Máquinas · Eventos · Parceiros · Clientes · Cadastr
 | `/novo-cliente` | Alta (`?parceiro=true` já marca a tag) |
 | `/fornecedores` | Lista |
 | `/novo-fornecedor` | Alta |
-| `/cadastros` | Hub de formulários |
+| `/distribuidores` | Lista + modal |
+| `/distribuidores/novo` | Alta |
 | `/usuarios` | Admin |
 | `/novo-usuario` | Alta admin |
 | `/novo-adquirente` | Legado (não usar para parceiro) |

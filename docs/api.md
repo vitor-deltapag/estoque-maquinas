@@ -227,6 +227,22 @@ MID vazio → `cliente = NULL`. Fornecedor vazio → `fornecedor = NULL`. `data_
 
 ---
 
+## Movimentações
+
+### GET `/movimentacoes/resumo?semana=YYYY-MM-DD`
+
+Semana de segunda a domingo que contém `semana`. Sem o parâmetro, usa a data de hoje. Cada cliente traz blocos `cliente` e `evento`.
+
+Dentro do bloco, a mesma máquina que entra e sai na semana fica `nao_alterou`. Saída de uma máquina e entrada de outra no mesmo cliente é troca: não soma em `vinculos_novos` nem em `desvinculos`. Máquina que sai de um cliente e entra em outro conta desvínculo num e vínculo novo no outro.
+
+`totais` soma `vinculos_novos`, `desvinculos` e `trocas` só dos blocos `cliente`.
+
+### GET `/movimentacoes/maquina?serial=`
+
+Serial em maiúsculas, ignorando espaços. 400 se vier vazio. 404 se a máquina não existe.
+
+Devolve serial, modelo, estado, aquisição, `em_evento`, cliente atual (`nome` e `mid`), fornecedor, parceiro e `ultimos_vinculos`: até 3 `VINCULO_CLIENTE` desse serial, do mais recente ao mais antigo, com data, nome do cliente e MID atual desse cliente.
+
 ## Eventos
 
 ### GET `/eventos`

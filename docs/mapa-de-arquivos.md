@@ -32,7 +32,7 @@ Caminhos a partir da raiz `code/`.
 | --- | --- | --- |
 | `routers/auth.py` | auth | `POST /login` |
 | `routers/adquirentes.py` | adquirentes | `/adquirentes` |
-| `routers/fornecedores.py` | fornecedores | `/fornecedores` |
+| `routers/fornecedores.py` | fornecedores | `/fornecedores` (a UI chama de Distribuidores) |
 | `routers/clientes.py` | clientes | `/clientes` |
 | `routers/dispositivos.py` | dispositivos | `/dispositivos` (`/lote` e `/dashboard` **antes** de `/{id}`) |
 | `routers/eventos.py` | eventos | `/eventos` |
@@ -90,15 +90,16 @@ Caminhos a partir da raiz `code/`.
 | `src/app/clientes/page.tsx` | Lista + modal |
 | `src/app/novo-cliente/page.tsx` | Alta |
 | `src/app/editar-cliente/[id]/page.tsx` | Edição dedicada |
-| `src/app/fornecedores/page.tsx` | Lista |
-| `src/app/novo-fornecedor/page.tsx` | Alta |
+| `src/app/fornecedores/page.tsx` | Redireciona para `/distribuidores` |
+| `src/app/novo-fornecedor/page.tsx` | Redireciona para `/distribuidores/novo` |
 | `src/app/eventos/page.tsx` | Lista |
 | `src/app/eventos/novo/page.tsx` | Alta lote |
 | `src/app/eventos/[id]/page.tsx` | Detalhe + modal finalizar |
 | `src/app/parceiros/page.tsx` | Lista |
 | `src/app/parceiros/novo/page.tsx` | Alta |
 | `src/app/parceiros/[id]/page.tsx` | Ficha + seriais só leitura |
-| `src/app/cadastros/page.tsx` | Hub |
+| `src/app/distribuidores/page.tsx` | Lista + modal |
+| `src/app/distribuidores/novo/page.tsx` | Alta |
 | `src/app/usuarios/page.tsx` | Admin |
 | `src/app/novo-usuario/page.tsx` | Alta admin |
 | `src/app/novo-adquirente/page.tsx` | Legado |

@@ -87,12 +87,13 @@ E-mail, por ordem: `payload.email`, `user_metadata.email`, `app_metadata.email`.
 **Header — activo:**
 
 - `/` exacto → Painel
-- `/dispositivos` exacto → Máquinas
+- `/dispositivos`, `/novo-dispositivo`, `/editar-dispositivo…` → Máquinas
+- `/movimentacoes` exacto → Movimentações
 - `/eventos` ou `/eventos/…` → Eventos
 - `/parceiros` ou `/parceiros/…` → Parceiros
 - `/clientes`, `/editar-cliente…`, `/novo-cliente…` → Clientes
-- `/cadastros` ou `/novo-*` **excepto** `/novo-cliente` → Cadastros
-- `/usuarios` se ADMIN
+- `/distribuidores` ou `/distribuidores/…` → Distribuidores
+- `/usuarios` ou `/novo-usuario` se ADMIN
 
 Nav `hidden md:flex` (em viewport pequena o menu some; o título e Sair ficam).
 

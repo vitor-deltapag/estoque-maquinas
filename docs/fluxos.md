@@ -31,7 +31,7 @@ Todos os fluxos autenticados assumem sessão válida (exceto a secção de login
 3. Cards (links):
    - Máquinas → `/dispositivos`
    - Clientes → `/clientes`
-   - Fornecedores → `/fornecedores`
+   - Distribuidores → `/distribuidores`
    - Parceiro → `/dispositivos?parceiro=true`
    - Evento → `/eventos` (texto do botão: Gerenciar eventos)
    - Usuários → `/usuarios` (**só ADMIN**, badge Admin, conta `total_usuarios`)
@@ -54,7 +54,7 @@ Todos os fluxos autenticados assumem sessão válida (exceto a secção de login
 
 ## 4. Cadastrar fornecedor
 
-Cadastros → Fornecedor. Nome e código. POST `/fornecedores`. Código duplicado → 400. Lista em `/fornecedores` (sem paginação na API: devolve todos).
+Menu Distribuidores → **+ Novo Distribuidor**. Nome e código na tabela `fornecedor`. POST `/fornecedores`. Código duplicado → 400. A lista lê `GET /fornecedores` (sem paginação: devolve todos). Cancelar volta para `/distribuidores`.
 
 ---
 
@@ -82,8 +82,8 @@ O POST unitário `POST /dispositivos` continua na API para um serial só; o form
 
 ## 5b. Parceiro (aba)
 
-1. Menu Parceiros (`/parceiros`) ou Cadastros → Parceiro (`/parceiros/novo`).
-2. Alta: MID, razão social \*, fantasia. POST `/parceiros` (a API força `parceiro=true`). MID duplicado → faixa vermelha. Cancelar volta para `/cadastros`.
+1. Menu Parceiros (`/parceiros`) ou **+ Novo Parceiro** (`/parceiros/novo`).
+2. Alta: MID, razão social \*, fantasia. POST `/parceiros` (a API força `parceiro=true`). MID duplicado → faixa vermelha. Cancelar volta para `/parceiros`.
 3. Lista: cards com MID, quantidade de máquinas, nome, fantasia. Clique → `/parceiros/{id}`.
 4. Ficha: editar nome/fantasia/MID (PUT). Máquinas vinculadas **só leitura** (serial em texto). Excluir: `confirm` → DELETE; 400 se houver máquina como MID ou como `adquirente`.
 5. Vincular máquina ao parceiro continua no cadastro/ficha da **máquina** (dropdown).
@@ -139,5 +139,6 @@ Lista ordenada na UI: PENDENTE, depois ABERTO, depois FINALIZADO (a API devolve 
 | Clientes | `GET /clientes?page&limit&search`, PUT/DELETE |
 | Novo evento | GET clientes (validar MID), GET dispositivos (sugestão serial), POST `/eventos` |
 | Eventos | GET `/eventos`, GET `/eventos/{id}`, POST finalizar |
+| Movimentações | GET `/movimentacoes/resumo?semana`, GET `/movimentacoes/maquina?serial` |
 | Parceiros | GET `/parceiros`, POST `/parceiros`, GET/PUT/DELETE `/parceiros/{id}` |
-| Cadastros | GET `/usuarios/me` (mostrar card Usuário) |
+| Distribuidores | `GET /fornecedores`, POST `/fornecedores`, PUT/DELETE no modal |

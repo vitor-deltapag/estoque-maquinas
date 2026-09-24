@@ -391,7 +391,7 @@ export default function NovoDispositivo() {
           </div>
 
           <div className="flex gap-4 pt-4">
-            <Link href="/cadastros" className="w-1/2 text-center border border-gray-300 hover:bg-gray-100 hover:text-gray-900 text-gray-700 font-semibold p-2.5 rounded-lg transition-colors text-sm dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-100 dark:hover:text-gray-900">Cancelar</Link>
+            <Link href="/dispositivos" className="w-1/2 text-center border border-gray-300 hover:bg-gray-100 hover:text-gray-900 text-gray-700 font-semibold p-2.5 rounded-lg transition-colors text-sm dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-100 dark:hover:text-gray-900">Cancelar</Link>
             <button type="submit" disabled={loading} className="w-1/2 bg-orange-600 hover:bg-orange-700 text-white font-semibold p-2.5 rounded-lg transition-colors text-sm disabled:opacity-50">
               {loading ? "Salvando..." : qtdParaSalvar > 1 ? `Salvar ${qtdParaSalvar} máquinas` : "Salvar Dispositivo"}
             </button>

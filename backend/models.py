@@ -36,6 +36,7 @@ class Fornecedor(Base):
         ),
     )
 
+
 class Cliente(Base):
     __tablename__ = "cliente" # Nome exato da tabela no SQL
     

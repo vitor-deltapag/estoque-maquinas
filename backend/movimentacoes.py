@@ -1,5 +1,8 @@
 from datetime import date, datetime, time, timedelta
 
+from sqlalchemy import func
+from sqlalchemy.orm import selectinload
+
 import models
 
 ENTRADA = {"VINCULO_CLIENTE": "cliente", "ENTRADA_EVENTO": "evento"}
@@ -82,6 +85,7 @@ def resumo_semana(db, dia: date):
         grupos.setdefault((linha.cliente_id, bloco), []).append(linha)
 
     clientes = {}
+    totais = {"vinculos_novos": 0, "desvinculos": 0, "trocas": 0}
     for (cliente_id, bloco), itens in grupos.items():
         cliente = db.get(models.Cliente, cliente_id)
         alvo = clientes.setdefault(cliente_id, {
@@ -89,10 +93,62 @@ def resumo_semana(db, dia: date):
             "cliente_nome": cliente.nome if cliente else None,
             "blocos": [],
         })
-        alvo["blocos"].append({"bloco": bloco, **_classificar(itens)})
+        classificado = _classificar(itens)
+        if bloco == "cliente":
+            totais["vinculos_novos"] += classificado["vinculos_novos"]
+            totais["desvinculos"] += classificado["desvinculos"]
+            totais["trocas"] += classificado["trocas"]
+        alvo["blocos"].append({"bloco": bloco, **classificado})
 
     return {
         "inicio": inicio.date().isoformat(),
         "fim": (fim - timedelta(days=1)).date().isoformat(),
+        "totais": totais,
         "clientes": list(clientes.values()),
+    }
+
+
+def consulta_maquina(db, serial: str):
+    dispositivo = (
+        db.query(models.Dispositivo)
+        .options(
+            selectinload(models.Dispositivo.cliente_rel),
+            selectinload(models.Dispositivo.fornecedor_rel),
+            selectinload(models.Dispositivo.adquirente_rel),
+        )
+        .filter(func.upper(models.Dispositivo.numero_serial) == serial)
+        .first()
+    )
+    if not dispositivo:
+        return None
+
+    linhas = (
+        db.query(models.MovimentacaoMaquina)
+        .filter(func.upper(models.MovimentacaoMaquina.numero_serial) == serial)
+        .filter(models.MovimentacaoMaquina.tipo == "VINCULO_CLIENTE")
+        .order_by(models.MovimentacaoMaquina.created_at.desc(), models.MovimentacaoMaquina.id.desc())
+        .limit(3)
+        .all()
+    )
+    ultimos = []
+    for linha in linhas:
+        cliente = db.get(models.Cliente, linha.cliente_id) if linha.cliente_id else None
+        quando = linha.created_at.isoformat() if isinstance(linha.created_at, datetime) else linha.created_at
+        ultimos.append({
+            "quando": quando,
+            "cliente_nome": cliente.nome if cliente else None,
+            "mid": cliente.mid if cliente else None,
+        })
+
+    atual = dispositivo.cliente_rel
+    return {
+        "numero_serial": dispositivo.numero_serial,
+        "modelo": dispositivo.modelo,
+        "estado": dispositivo.estado,
+        "aquisicao": dispositivo.aquisicao,
+        "em_evento": dispositivo.em_evento,
+        "cliente_atual": {"nome": atual.nome, "mid": atual.mid} if atual else None,
+        "fornecedor_nome": dispositivo.fornecedor_rel.nome if dispositivo.fornecedor_rel else None,
+        "adquirente_nome": dispositivo.adquirente_rel.nome if dispositivo.adquirente_rel else None,
+        "ultimos_vinculos": ultimos,
     }

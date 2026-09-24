@@ -78,7 +78,7 @@ Em evento: mostrador **Não** + “A máquina entra em evento pela aba Eventos.�
 Modelo: mostrador (prefixo VF8→X990, PB→P2 BIN, 4A→L300, 14→A910, 6→S920). Cores: P2 BIN laranja, X990 violeta, S920 ciano, A910 âmbar, L300 rosa; conflito vermelho; vazio cinza.  
 Estado: mostrador `ESTOQUE` azul ou `NO CLIENTE` verde conforme o MID. REPARO / MAQUINA PERDIDA só na edição da lista.
 
-Cancelar → `/cadastros`.
+Cancelar → `/dispositivos`.
 
 ---
 
@@ -90,7 +90,7 @@ Debounce 500 ms. `GET /clientes?page&limit=20&search`. Modal: razão \*, fantasi
 
 ## Novo cliente `/novo-cliente`
 
-MID, razão \*, fantasia, Parceiro. `useEffect` lê `?parceiro=true`. Cancelar → `/cadastros`. Não mostra mensagem de erro de MID duplicado na UI (só falha o POST).
+MID, razão \*, fantasia, Parceiro. `useEffect` lê `?parceiro=true`. Cancelar → `/clientes`. Não mostra mensagem de erro de MID duplicado na UI (só falha o POST).
 
 ---
 
@@ -116,7 +116,7 @@ GET `/parceiros`. Cards: MID, `qtd_maquinas`, nome, fantasia. Link `/parceiros/{
 
 ## Novo parceiro `/parceiros/novo`
 
-POST `/parceiros` `{ nome, nome_fantasia, mid }`. Erro (MID duplicado) na faixa vermelha. Sucesso → `/parceiros`. Cancelar → `/cadastros`.
+POST `/parceiros` `{ nome, nome_fantasia, mid }`. Erro (MID duplicado) na faixa vermelha. Sucesso → `/parceiros`. Cancelar → `/parceiros`.
 
 ## Detalhe `/parceiros/[id]`
 
@@ -124,9 +124,9 @@ GET `/parceiros/{id}`. Form PUT (nome, fantasia, MID). Lista de máquinas **só 
 
 ---
 
-## Cadastros `/cadastros`
+## Distribuidores `/distribuidores`
 
-Cards estáticos + card Usuário se `perfil === ADMIN`. Destinos: `/novo-dispositivo`, `/novo-cliente`, `/novo-fornecedor`, `/parceiros/novo`, `/novo-usuario`. Card Máquina: “Cadastrar uma ou várias máquinas no estoque.” Card Parceiro: “Cadastrar um parceiro e ver as máquinas vinculadas.”
+O menu chama de Distribuidores a tabela `fornecedor`. Busca, cards e botão **+ Novo Distribuidor**. Card mostra código e nome. Clique abre a ficha (PUT/DELETE em `/fornecedores`). Alta em `/distribuidores/novo` faz POST `/fornecedores`. `/fornecedores` e `/novo-fornecedor` redirecionam para essas rotas.
 
 ---
 
