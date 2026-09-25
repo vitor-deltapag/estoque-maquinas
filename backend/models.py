@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, CheckConstraint, Column, Date, Integer, String, ForeignKey, DateTime, Index, text
+from sqlalchemy import Boolean, CheckConstraint, Column, Date, Integer, JSON, String, ForeignKey, DateTime, Index, text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
@@ -162,7 +162,8 @@ class DadosUsuario(Base):
     nome = Column(String(255), nullable=False)
     nome_fantasia = Column(String(255), nullable=True)
     status = Column(String(50), nullable=True)
-    perfil = Column(String(50), default="COMUM", nullable=False)
+    perfil = Column(String(50), default="OPERACIONAL", nullable=False)
+    permissoes = Column(JSON, nullable=True)
     email = Column(String(255), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 

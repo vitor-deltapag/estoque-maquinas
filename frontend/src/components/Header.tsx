@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase, getAccessToken, ensureSessionWithinMaxAge, clearSessionStarted, isRememberMe } from "../lib/supabase";
 import ThemeToggle from "./ThemeToggle";
 import { apiFetch } from "../lib/api";
+import type { Permissoes } from "../lib/permissoes";
 
 const ROTAS_PUBLICAS = ["/login", "/esqueci-senha", "/redefinir-senha"];
 const IDLE_MS = 15 * 60 * 1000;
@@ -16,7 +17,7 @@ export default function Header() {
   const pathnameRef = useRef(pathname);
   pathnameRef.current = pathname;
   const [carregando, setCarregando] = useState(true);
-  const [perfil, setPerfil] = useState<string>("COMUM");
+  const [permissoes, setPermissoes] = useState<Partial<Permissoes>>({});
   const idleLogoutRef = useRef(false);
   const expiredLogoutRef = useRef(false);
 
@@ -65,7 +66,7 @@ export default function Header() {
             const res = await apiFetch("/usuarios/me");
             if (cancelled || !res.ok) return;
             const data = await res.json();
-            setPerfil(data.perfil);
+            setPermissoes(data.permissoes || {});
           } catch (error) {
             console.error(error);
           }
@@ -161,12 +162,14 @@ export default function Header() {
                 <nav className="hidden md:flex space-x-4 lg:space-x-6 text-sm">
                   <Link href="/" className={isAtivo("/")}>Painel</Link>
                   <Link href="/dispositivos" className={isAtivo("/dispositivos")}>Máquinas</Link>
-                  <Link href="/movimentacoes" className={isAtivo("/movimentacoes")}>Movimentações</Link>
+                  {permissoes.ver_movimentacoes && (
+                    <Link href="/movimentacoes" className={isAtivo("/movimentacoes")}>Movimentações</Link>
+                  )}
                   <Link href="/eventos" className={isAtivo("/eventos")}>Eventos</Link>
                   <Link href="/parceiros" className={isAtivo("/parceiros")}>Parceiros</Link>
                   <Link href="/clientes" className={isAtivo("/clientes")}>Clientes</Link>
                   <Link href="/distribuidores" className={isAtivo("/distribuidores")}>Distribuidores</Link>
-                  {perfil === "ADMIN" && (
+                  {permissoes.gerir_usuarios && (
                     <Link href="/usuarios" className={isAtivo("/usuarios")}>Usuários</Link>
                   )}
                 </nav>

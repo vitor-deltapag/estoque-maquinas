@@ -203,7 +203,7 @@ Regras:
 - Seriais vazios / só espaços são ignorados. Repetidos no payload (trim + maiúsculas) contam uma vez. `pb123` grava `PB123`.
 - Sem nenhum serial válido → 400 `Informe ao menos um número serial.`
 - Modelo / estado / aquisição vazios → mesmas mensagens do POST unitário.
-- **Tudo ou nada:** se um serial já existir, 400 e **nenhuma** máquina do lote é gravada.
+- Serial inválido, repetido na lista ou já cadastrado entra em `recusados` (`numero_serial`, `motivo`). Os demais são gravados. Se nenhum for válido, 201 com `qtd: 0` e a lista de recusas. Modelo de cada máquina sai do prefixo e do tamanho (VF8/10 X990, PB/13 P2 BIN, 4A/9 L300, 14/10 A910, 6/8 S920). `modelo` no body é ignorado.
 - `em_evento` sempre `false`.
 - Mesma trava ESTOQUE + MID + fornecedor e as mesmas mensagens de MID / fornecedor / parceiro do POST unitário.
 
@@ -313,7 +313,7 @@ Todos, sem paginação.
 
 Exige nome, e-mail e senha. E-mail é gravado em minúsculas. Senha provisória ≥ 8 caracteres. Perfil só `COMUM` ou `ADMIN`; status só `ATIVO` ou `INATIVO`.
 
-400: `Informe o nome completo.` / `E-mail e senha são obrigatórios.` / `Informe um e-mail válido.` / `A senha provisória precisa ter pelo menos 8 caracteres.` / `Perfil inválido. Use COMUM ou ADMIN.` / `Status inválido. Use ATIVO ou INATIVO.` / `E-mail já cadastrado.` (Postgres, antes de chamar o Auth) / `E-mail já cadastrado no login.` (Auth já tinha o e-mail) / `Não foi possível criar o acesso. Tente outro e-mail.` / `Erro ao salvar usuário no banco`. Sem service_role: 500 `Supabase Admin API não está configurada`.
+400: `Informe o nome completo.` / `E-mail e senha são obrigatórios.` / `Informe um e-mail válido.` / `A senha provisória precisa ter pelo menos 8 caracteres.` / `Perfil inválido. Use ADMIN, OPERACIONAL ou COMERCIAL.` / `Status inválido. Use ATIVO ou INATIVO.` / `E-mail já cadastrado.` (Postgres, antes de chamar o Auth) / `E-mail já cadastrado no login.` (Auth já tinha o e-mail) / `Não foi possível criar o acesso. Tente outro e-mail.` / `Erro ao salvar usuário no banco`. Sem service_role: 500 `Supabase Admin API não está configurada`.
 
 Auth: `create_user({ email, password, email_confirm: true, user_metadata: { nome } })`. A senha **não** vai ao Postgres. Perfil default schema `COMUM`, status default `ATIVO`. Se o insert no Postgres falhar depois do Auth, a API apaga o user recém-criado.
 

@@ -6,8 +6,9 @@ import { supabase } from "../../lib/supabase";
 import { apiFetch } from "../../lib/api";
 import { useMensagem } from "../../components/ToastErro";
 import DropdownCustomizado from "../../components/DropdownCustomizado";
+import { OPCOES_PERFIL, rotuloPerfil } from "../../lib/permissoes";
 
-type UsuarioMe = { perfil?: string };
+type UsuarioMe = { permissoes?: { gerir_usuarios?: boolean } };
 
 type AcessoCriado = {
   nome: string;
@@ -16,11 +17,6 @@ type AcessoCriado = {
   perfil: string;
   status: string;
 };
-
-const OPCOES_PERFIL = [
-  { value: "COMUM", label: "Comum — só consulta e operação" },
-  { value: "ADMIN", label: "Admin — pode cadastrar acessos e dados" },
-];
 
 const OPCOES_STATUS = [
   { value: "ATIVO", label: "Ativo" },
@@ -51,7 +47,7 @@ export default function NovoUsuarioPage() {
   const [nome, setNome] = useState("");
   const [nomeFantasia, setNomeFantasia] = useState("");
   const [status, setStatus] = useState("ATIVO");
-  const [perfil, setPerfil] = useState("COMUM");
+  const [perfil, setPerfil] = useState("OPERACIONAL");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
@@ -75,7 +71,7 @@ export default function NovoUsuarioPage() {
           return;
         }
         const me: UsuarioMe = await res.json();
-        if (me.perfil !== "ADMIN") router.replace("/");
+        if (!me.permissoes?.gerir_usuarios) router.replace("/");
       } catch {
         router.replace("/login");
       }
@@ -110,7 +106,7 @@ export default function NovoUsuarioPage() {
     setNome("");
     setNomeFantasia("");
     setStatus("ATIVO");
-    setPerfil("COMUM");
+    setPerfil("OPERACIONAL");
     setEmail("");
     setSenha("");
     setConfirmarSenha("");
@@ -202,7 +198,7 @@ export default function NovoUsuarioPage() {
             <span className="text-sm text-gray-500">Perfil</span>
             <br />
             <span className="font-medium">
-              {acessoCriado.perfil === "ADMIN" ? "Admin" : "Comum"} · {acessoCriado.status === "ATIVO" ? "Ativo" : "Inativo"}
+              {rotuloPerfil(acessoCriado.perfil)} · {acessoCriado.status === "ATIVO" ? "Ativo" : "Inativo"}
             </span>
           </p>
           <div className="flex items-center justify-between gap-2">

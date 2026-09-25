@@ -95,12 +95,12 @@ def get_current_user(
         .filter(models.DadosUsuario.email == email)
         .first()
     )
-    # Primeiro acesso: cria linha COMUM em dados_usuario (Auth já existe no Supabase).
+    # Primeiro acesso: cria linha OPERACIONAL em dados_usuario (Auth já existe no Supabase).
     if not usuario:
         usuario = models.DadosUsuario(
             nome=email.split("@")[0],
             email=email,
-            perfil="COMUM",
+            perfil="OPERACIONAL",
             status="ATIVO",
         )
         db.add(usuario)
@@ -112,11 +112,26 @@ def get_current_user(
     return usuario
 
 
+def exigir_permissao(chave: str):
+    def _dep(user: models.DadosUsuario = Depends(get_current_user)) -> models.DadosUsuario:
+        from permissoes import pode
+
+        if not pode(user, chave):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Sem permissão para esta ação.",
+            )
+        return user
+
+    return _dep
+
+
 def require_admin(
     user: models.DadosUsuario = Depends(get_current_user),
 ) -> models.DadosUsuario:
-    # Usar em /usuarios (exceto /me). COMUM autenticado ainda passa em get_current_user.
-    if user.perfil != "ADMIN":
+    from permissoes import pode
+
+    if not pode(user, "gerir_usuarios"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Acesso restrito a administradores",

@@ -1,9 +1,9 @@
-const PREFIXOS: { prefixo: string; modelo: string }[] = [
-  { prefixo: "VF8", modelo: "X990" },
-  { prefixo: "PB", modelo: "P2 BIN" },
-  { prefixo: "4A", modelo: "L300" },
-  { prefixo: "14", modelo: "A910" },
-  { prefixo: "6", modelo: "S920" },
+const PREFIXOS: { prefixo: string; modelo: string; tamanho: number }[] = [
+  { prefixo: "VF8", modelo: "X990", tamanho: 10 },
+  { prefixo: "PB", modelo: "P2 BIN", tamanho: 13 },
+  { prefixo: "4A", modelo: "L300", tamanho: 9 },
+  { prefixo: "14", modelo: "A910", tamanho: 10 },
+  { prefixo: "6", modelo: "S920", tamanho: 8 },
 ];
 
 const BASE_MOSTRADOR = "w-full border rounded-lg p-2.5 font-semibold";
@@ -20,13 +20,13 @@ export function modeloPorSerial(serial: string): string {
   const texto = serial.trim().toUpperCase();
   if (!texto) return "";
   const achado = PREFIXOS.find((item) => texto.startsWith(item.prefixo));
-  return achado?.modelo || "";
+  if (!achado || texto.length !== achado.tamanho) return "";
+  return achado.modelo;
 }
 
 export function modeloDoLote(seriais: string[]): { modelo: string; conflito: boolean } {
-  const modelos = new Set(seriais.map(modeloPorSerial).filter(Boolean));
-  if (modelos.size > 1) return { modelo: "", conflito: true };
-  return { modelo: [...modelos][0] || "", conflito: false };
+  const modelos = [...new Set(seriais.map(modeloPorSerial).filter(Boolean))];
+  return { modelo: modelos.join(", "), conflito: false };
 }
 
 const COR_MODELO_VAZIO =

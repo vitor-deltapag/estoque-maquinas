@@ -6,6 +6,7 @@ from typing import List
 
 from database import get_db
 from deps import get_current_user, require_admin
+from permissoes import gravar_permissoes, normalizar_perfil
 from helpers import empty_to_none
 from log import logger
 from supabase_admin import supabase_admin
@@ -15,7 +16,7 @@ import schemas
 router = APIRouter(tags=["usuarios"])
 
 SENHA_MIN = 8
-PERFIS = {"COMUM", "ADMIN"}
+PERFIS = {"ADMIN", "OPERACIONAL", "COMERCIAL"}
 STATUSES = {"ATIVO", "INATIVO"}
 
 
@@ -40,9 +41,9 @@ def _validar_acesso(usuario: schemas.DadosUsuarioCreate, *, exigir_senha: bool):
                 status_code=400,
                 detail=f"A senha provisória precisa ter pelo menos {SENHA_MIN} caracteres.",
             )
-    perfil = (usuario.perfil or "COMUM").strip().upper()
-    if perfil not in PERFIS:
-        raise HTTPException(status_code=400, detail="Perfil inválido. Use COMUM ou ADMIN.")
+    perfil = normalizar_perfil(usuario.perfil)
+    if (usuario.perfil or "").strip().upper() not in PERFIS | {"COMUM", ""}:
+        raise HTTPException(status_code=400, detail="Perfil inválido. Use ADMIN, OPERACIONAL ou COMERCIAL.")
     status_user = (usuario.status or "ATIVO").strip().upper()
     if status_user not in STATUSES:
         raise HTTPException(status_code=400, detail="Status inválido. Use ATIVO ou INATIVO.")
@@ -53,6 +54,7 @@ def _validar_acesso(usuario: schemas.DadosUsuarioCreate, *, exigir_senha: bool):
         "senha": senha,
         "perfil": perfil,
         "status": status_user,
+        "permissoes": gravar_permissoes(perfil, usuario.permissoes),
     }
 
 
@@ -101,6 +103,7 @@ def criar_usuario(usuario: schemas.DadosUsuarioCreate, db: Session = Depends(get
         email=dados["email"],
         perfil=dados["perfil"],
         status=dados["status"],
+        permissoes=dados["permissoes"],
     )
     try:
         db.add(novo)
@@ -133,12 +136,12 @@ def atualizar_usuario(item_id: int, usuario: schemas.DadosUsuarioCreate, db: Ses
     if not item:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
-    dados_entrada = usuario.model_dump(exclude={"senha", "email"})
-
-    item.nome = dados_entrada.get("nome", item.nome)
-    item.nome_fantasia = dados_entrada.get("nome_fantasia", item.nome_fantasia)
-    item.status = dados_entrada.get("status", item.status)
-    item.perfil = dados_entrada.get("perfil", item.perfil)
+    dados = _validar_acesso(usuario, exigir_senha=False)
+    item.nome = dados["nome"]
+    item.nome_fantasia = dados["nome_fantasia"]
+    item.status = dados["status"]
+    item.perfil = dados["perfil"]
+    item.permissoes = dados["permissoes"]
 
     try:
         db.commit()

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from database import get_db
-from deps import get_current_user
+from deps import exigir_permissao, get_current_user
 import models
 import schemas
 
@@ -34,7 +34,7 @@ def obter_adquirente(
 def criar_adquirente(
     adquirente: schemas.AdquirenteCreate,
     db: Session = Depends(get_db),
-    user: models.DadosUsuario = Depends(get_current_user),
+    user: models.DadosUsuario = Depends(exigir_permissao("alterar_estoque")),
 ):
     # Usado pela página /novo-adquirente (só envia nome).
     novo = models.Adquirente(**adquirente.model_dump())
@@ -49,7 +49,7 @@ def atualizar_adquirente(
     item_id: int,
     adquirente: schemas.AdquirenteCreate,
     db: Session = Depends(get_db),
-    user: models.DadosUsuario = Depends(get_current_user),
+    user: models.DadosUsuario = Depends(exigir_permissao("alterar_estoque")),
 ):
     item = db.query(models.Adquirente).filter(models.Adquirente.id == item_id).first()
     if not item:
@@ -64,7 +64,7 @@ def atualizar_adquirente(
 def deletar_adquirente(
     item_id: int,
     db: Session = Depends(get_db),
-    user: models.DadosUsuario = Depends(get_current_user),
+    user: models.DadosUsuario = Depends(exigir_permissao("alterar_estoque")),
 ):
     item = db.query(models.Adquirente).filter(models.Adquirente.id == item_id).first()
     if not item:

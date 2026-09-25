@@ -11,6 +11,20 @@ function formatarData(valor?: string | null) {
   return `${dia}/${mes}/${ano}`;
 }
 
+function passouDeSeteDias(valor?: string | null) {
+  if (!valor) return false;
+  const dia = new Date(valor);
+  if (Number.isNaN(dia.getTime())) return false;
+  const limite = new Date();
+  limite.setDate(limite.getDate() - 7);
+  return dia < limite;
+}
+
+function recente(ev: { created_at?: string; id?: number }) {
+  const marca = ev.created_at ? new Date(ev.created_at).getTime() : 0;
+  return Number.isNaN(marca) ? ev.id || 0 : marca;
+}
+
 function badgeSituacao(situacao: string) {
   if (situacao === "PENDENTE") {
     return "text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/40";
@@ -24,6 +38,7 @@ function badgeSituacao(situacao: string) {
 export default function ListaEventos() {
   const [eventos, setEventos] = useState<any[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [consultaFinalizados, setConsultaFinalizados] = useState(false);
 
   useEffect(() => {
     async function carregar() {
@@ -32,8 +47,7 @@ export default function ListaEventos() {
         if (res.ok) {
           const dados = await res.json();
           const lista = Array.isArray(dados) ? dados : [];
-          const ordem = { PENDENTE: 0, ABERTO: 1, FINALIZADO: 2 } as Record<string, number>;
-          lista.sort((a: any, b: any) => (ordem[a.situacao] ?? 9) - (ordem[b.situacao] ?? 9));
+          lista.sort((a: any, b: any) => recente(b) - recente(a));
           setEventos(lista);
         }
       } catch (error) {
@@ -53,7 +67,11 @@ export default function ListaEventos() {
     );
   }
 
-  const pendentes = eventos.filter((ev) => ev.situacao === "PENDENTE");
+  const finalizados = eventos.filter((ev) => ev.situacao === "FINALIZADO");
+  const visiveis = consultaFinalizados
+    ? finalizados
+    : eventos.filter((ev) => ev.situacao !== "FINALIZADO" || !passouDeSeteDias(ev.data_finalizacao || ev.data_fim));
+  const pendentes = consultaFinalizados ? [] : visiveis.filter((ev) => ev.situacao === "PENDENTE");
 
   return (
     <main className="p-10 max-w-7xl mx-auto min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors">
@@ -64,12 +82,21 @@ export default function ListaEventos() {
             Vincule várias máquinas ao mesmo cliente, acompanhe as datas e cobre a devolução.
           </p>
         </div>
-        <Link
-          href="/eventos/novo"
-          className="w-full md:w-auto text-center bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2.5 px-5 rounded-lg text-sm shadow-sm transition-colors"
-        >
-          + Novo Evento
-        </Link>
+        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+          <button
+            type="button"
+            onClick={() => setConsultaFinalizados((atual) => !atual)}
+            className="w-full md:w-auto text-center border border-orange-500 text-orange-700 dark:text-orange-300 font-semibold py-2.5 px-5 rounded-lg text-sm transition-colors"
+          >
+            {consultaFinalizados ? "Voltar aos eventos" : "Eventos finalizados"}
+          </button>
+          <Link
+            href="/eventos/novo"
+            className="w-full md:w-auto text-center bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2.5 px-5 rounded-lg text-sm shadow-sm transition-colors"
+          >
+            + Novo Evento
+          </Link>
+        </div>
       </div>
 
       {pendentes.length > 0 && (
@@ -86,12 +113,12 @@ export default function ListaEventos() {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {eventos.length === 0 ? (
+        {visiveis.length === 0 ? (
           <div className="col-span-full py-16 text-center text-gray-400 font-medium bg-white rounded-xl border border-dashed border-gray-300 dark:bg-gray-900 dark:border-gray-700">
-            Nenhum evento cadastrado.
+            {consultaFinalizados ? "Nenhum evento finalizado." : "Nenhum evento em andamento."}
           </div>
         ) : (
-          eventos.map((ev) => (
+          visiveis.map((ev) => (
             <Link
               key={ev.id}
               href={`/eventos/${ev.id}`}

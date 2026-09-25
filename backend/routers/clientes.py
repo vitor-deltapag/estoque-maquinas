@@ -5,7 +5,7 @@ from sqlalchemy import or_
 from typing import List, Optional
 
 from database import get_db
-from deps import get_current_user
+from deps import exigir_permissao, get_current_user
 from helpers import empty_to_none
 from log import logger
 from movingpay import MovingpayErro, sincronizar_clientes
@@ -74,7 +74,7 @@ def obter_cliente(item_id: int, db: Session = Depends(get_db), user: models.Dado
 
 
 @router.post("/clientes", response_model=schemas.ClienteResponse, status_code=status.HTTP_201_CREATED)
-def criar_cliente(cliente: schemas.ClienteCreate, db: Session = Depends(get_db), user: models.DadosUsuario = Depends(get_current_user)):
+def criar_cliente(cliente: schemas.ClienteCreate, db: Session = Depends(get_db), user: models.DadosUsuario = Depends(exigir_permissao("alterar_estoque"))):
     dados = cliente.model_dump()
     dados.pop("status", None)
     dados["mid"] = empty_to_none(dados.get("mid"))
@@ -91,7 +91,7 @@ def criar_cliente(cliente: schemas.ClienteCreate, db: Session = Depends(get_db),
 
 
 @router.put("/clientes/{item_id}", response_model=schemas.ClienteResponse)
-def atualizar_cliente(item_id: int, cliente: schemas.ClienteCreate, db: Session = Depends(get_db), user: models.DadosUsuario = Depends(get_current_user)):
+def atualizar_cliente(item_id: int, cliente: schemas.ClienteCreate, db: Session = Depends(get_db), user: models.DadosUsuario = Depends(exigir_permissao("alterar_estoque"))):
     item = db.query(models.Cliente).filter(models.Cliente.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Cliente não encontrado")
@@ -113,7 +113,7 @@ def atualizar_cliente(item_id: int, cliente: schemas.ClienteCreate, db: Session 
 
 
 @router.delete("/clientes/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-def deletar_cliente(item_id: int, db: Session = Depends(get_db), user: models.DadosUsuario = Depends(get_current_user)):
+def deletar_cliente(item_id: int, db: Session = Depends(get_db), user: models.DadosUsuario = Depends(exigir_permissao("alterar_estoque"))):
     item = db.query(models.Cliente).filter(models.Cliente.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Cliente não encontrado")
@@ -131,7 +131,7 @@ def deletar_cliente(item_id: int, db: Session = Depends(get_db), user: models.Da
 def sincronizar(
     forcar: bool = False,
     db: Session = Depends(get_db),
-    user: models.DadosUsuario = Depends(get_current_user),
+    user: models.DadosUsuario = Depends(exigir_permissao("alterar_estoque")),
 ):
     try:
         return sincronizar_clientes(db, forcar=forcar)

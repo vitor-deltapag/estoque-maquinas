@@ -177,7 +177,7 @@ Script local, não é endpoint. Precisa `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_K
 1. Login ok; “lembrar”; Sair; login de novo.
 2. Painel: números e pizzas; faixa PENDENTE só se houver evento vencido aberto.
 3. Clientes: busca MID; editar fantasia; Parceiro Sim; tentar apagar com máquina (400).
-4. Máquina nova: um ou vários seriais no mesmo form; modelo inferido pelo prefixo (mostrador); sem MID o estado é ESTOQUE, com MID é NO CLIENTE (mostrador); MID confirma nome; Em evento é “Não” sem dropdown; serial já existente cancela o lote.
+4. Máquina nova: colar vários seriais, um por linha; modelo pelo prefixo e tamanho; sem MID o estado é ESTOQUE, com MID é NO CLIENTE; serial inválido ou já existente é listado e o restante grava.
 5. Ficha da máquina em evento: mostrador Sim; salvar outros campos **não** tira do evento.
 6. Evento: lote 2 seriais; lista ABERTO; mudar relógio/data_fim no banco para ontem → PENDENTE e faixa no painel; Finalizar → modal → máquinas `em_evento` false.
 7. Parceiros: lista só tag; ficha mostra seriais só leitura; PUT não muda serial; DELETE com máquina → 400.

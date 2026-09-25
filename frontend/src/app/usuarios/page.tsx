@@ -7,6 +7,7 @@ import { supabase } from "../../lib/supabase";
 import { apiFetch } from "../../lib/api";
 import { useMensagem } from "../../components/ToastErro";
 import DropdownCustomizado from "../../components/DropdownCustomizado";
+import { OPCOES_PERFIL, ROTULOS_PERMISSAO, permissoesDoPerfil, rotuloPerfil, type Permissoes } from "../../lib/permissoes";
 
 export default function ListaUsuarios() {
   const router = useRouter();
@@ -23,7 +24,8 @@ export default function ListaUsuarios() {
   const [mensagemModal, setMensagemModal] = useMensagem();
 
   const [formData, setFormData] = useState({
-    id: "", nome: "", nome_fantasia: "", email: "", status: "", perfil: "COMUM"
+    id: "", nome: "", nome_fantasia: "", email: "", status: "", perfil: "OPERACIONAL",
+    permissoes: permissoesDoPerfil("OPERACIONAL") as Permissoes,
   });
 
   // 1. CARREGA OS USUÁRIOS DO BANCO
@@ -54,7 +56,7 @@ export default function ListaUsuarios() {
         const res = await apiFetch("/usuarios/me");
         if (res.ok) {
           const data = await res.json();
-          if (data.perfil !== "ADMIN") {
+          if (!data.permissoes?.gerir_usuarios) {
             router.push("/");
             return;
           }
@@ -88,7 +90,8 @@ export default function ListaUsuarios() {
       nome_fantasia: user.nome_fantasia || "",
       email: user.email || "",
       status: user.status || "ATIVO",
-      perfil: user.perfil || "COMUM"
+      perfil: user.perfil === "COMUM" ? "OPERACIONAL" : (user.perfil || "OPERACIONAL"),
+      permissoes: user.permissoes || permissoesDoPerfil(user.perfil),
     });
     setMensagemModal({ tipo: "", texto: "" });
     setModalAberto(true);
@@ -214,7 +217,7 @@ export default function ListaUsuarios() {
                     ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
                     : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                     }`}>
-                    {user.perfil || "COMUM"}
+                    {rotuloPerfil(user.perfil)}
                   </span>
 
                   {/* Bolinha de Status */}
@@ -243,8 +246,8 @@ export default function ListaUsuarios() {
 
       {/* POP-UP DE EDIÇÃO */}
       {modalAberto && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 w-full max-w-lg p-8 animate-in fade-in zoom-in-95 duration-150 transition-colors">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 w-full max-w-lg p-8 my-8 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150 transition-colors">
 
             <div className="flex justify-between items-center mb-6">
               <div>
@@ -294,11 +297,8 @@ export default function ListaUsuarios() {
                   <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5">Perfil de Acesso</label>
                   <DropdownCustomizado
                     value={formData.perfil}
-                    onChange={(perfil) => setFormData({ ...formData, perfil })}
-                    options={[
-                      { value: "COMUM", label: "Usuário Comum" },
-                      { value: "ADMIN", label: "Administrador" },
-                    ]}
+                    onChange={(perfil) => setFormData({ ...formData, perfil, permissoes: permissoesDoPerfil(perfil) })}
+                    options={OPCOES_PERFIL}
                   />
                 </div>
 
@@ -313,6 +313,23 @@ export default function ListaUsuarios() {
                     ]}
                   />
                 </div>
+              </div>
+
+              <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-2">
+                <p className="text-sm font-bold text-gray-700 dark:text-gray-300">Permissões</p>
+                {ROTULOS_PERMISSAO.map((item) => (
+                  <label key={item.chave} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(formData.permissoes[item.chave])}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        permissoes: { ...formData.permissoes, [item.chave]: e.target.checked },
+                      })}
+                    />
+                    {item.label}
+                  </label>
+                ))}
               </div>
 
               <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-6 border-t border-gray-200 dark:border-gray-800 mt-6">

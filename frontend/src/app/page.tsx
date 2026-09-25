@@ -8,6 +8,7 @@ import { apiFetch } from "../lib/api";
 export default function Home() {
   const [metricas, setMetricas] = useState({ maquinas: 0, clientes: 0, fornecedores: 0, parceiro: 0, evento: 0, eventosPendentes: 0, usuarios: 0 });
   const [isAdmin, setIsAdmin] = useState(false);
+  const [verMovimentacoes, setVerMovimentacoes] = useState(false);
   const [graficosModelos, setGraficosModelos] = useState<any[]>([]);
   const [semana, setSemana] = useState<any>(null);
   const [carregando, setCarregando] = useState(true);
@@ -30,16 +31,20 @@ export default function Home() {
     async function carregarDashboard() {
       try {
         // Faz APENAS UMA requisição super rápida para a rota otimizada do dashboard
-        const [response, meRes, semanaRes] = await Promise.all([
+        const [response, meRes] = await Promise.all([
           apiFetch(`/dispositivos/dashboard`, { cache: "no-store" }),
           apiFetch(`/usuarios/me`, { cache: "no-store" }),
-          apiFetch(`/movimentacoes/resumo`, { cache: "no-store" }),
         ]);
-        if (semanaRes.ok) setSemana(await semanaRes.json());
 
         if (meRes.ok) {
           const me = await meRes.json();
-          setIsAdmin(me.perfil === "ADMIN");
+          const ver = Boolean(me.permissoes?.ver_movimentacoes);
+          setIsAdmin(Boolean(me.permissoes?.gerir_usuarios));
+          setVerMovimentacoes(ver);
+          if (ver) {
+            const semanaRes = await apiFetch(`/movimentacoes/resumo`, { cache: "no-store" });
+            if (semanaRes.ok) setSemana(await semanaRes.json());
+          }
         }
 
         if (response.ok) {
@@ -182,6 +187,7 @@ export default function Home() {
         )}
       </div>
 
+      {verMovimentacoes && (
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm mb-10">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
           <div>
@@ -213,6 +219,7 @@ export default function Home() {
           </ResponsiveContainer>
         </div>
       </div>
+      )}
 
       {/* GRÁFICOS DIVIDIDOS POR MODELO */}
       <h2 className="text-2xl font-bold text-orange-600 mb-6 border-b border-gray-200 dark:border-gray-800 pb-2 transition-colors">Status do Estoque por Modelo</h2>

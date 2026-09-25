@@ -7,8 +7,9 @@ from typing import List, Optional
 from movimentacoes import registrar
 
 from database import get_db
-from deps import get_current_user
+from deps import exigir_permissao, get_current_user
 from helpers import empty_to_none
+from serial_padrao import classificar_serial
 from log import logger
 import models
 import schemas
@@ -201,7 +202,7 @@ def listar_dispositivos(
 
 
 @router.post("/dispositivos", response_model=schemas.DispositivoResponse, status_code=status.HTTP_201_CREATED)
-def criar_dispositivo(dispositivo: schemas.DispositivoCreate, db: Session = Depends(get_db), user: models.DadosUsuario = Depends(get_current_user)):
+def criar_dispositivo(dispositivo: schemas.DispositivoCreate, db: Session = Depends(get_db), user: models.DadosUsuario = Depends(exigir_permissao("alterar_estoque"))):
     _exigir_modelo_e_estado(dispositivo.modelo, dispositivo.estado)
     aquisicao = _normalizar_aquisicao(dispositivo.aquisicao, obrigatorio=True)
     _recusar_estoque_com_mid_e_fornecedor(dispositivo.mid, dispositivo.fornecedor_nome, dispositivo.estado)
@@ -255,31 +256,45 @@ def criar_dispositivo(dispositivo: schemas.DispositivoCreate, db: Session = Depe
 def criar_dispositivos_lote(
     payload: schemas.DispositivoLoteCreate,
     db: Session = Depends(get_db),
-    user: models.DadosUsuario = Depends(get_current_user),
+    user: models.DadosUsuario = Depends(exigir_permissao("alterar_estoque")),
 ):
-    seriais = _seriais_limpos(payload.numero_seriais)
-    if not seriais:
+    if not payload.numero_seriais or not any((item or "").strip() for item in payload.numero_seriais):
         raise HTTPException(status_code=400, detail="Informe ao menos um número serial.")
-
-    _exigir_modelo_e_estado(payload.modelo, payload.estado)
+    if not empty_to_none(payload.estado):
+        raise HTTPException(status_code=400, detail="Informe o estado atual da máquina.")
     aquisicao = _normalizar_aquisicao(payload.aquisicao, obrigatorio=True)
     _recusar_estoque_com_mid_e_fornecedor(payload.mid, payload.fornecedor_nome, payload.estado)
-
-    for serial in seriais:
-        if _serial_ja_existe(db, serial):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Operação cancelada: O serial '{serial}' já está cadastrado no sistema.",
-            )
-
     cliente_id, fornecedor_id, adquirente_id = _resolver_vinculos(
         db, payload.mid, payload.fornecedor_nome, payload.adquirente_nome
     )
 
+    recusados = []
+    aceitos = []
+    vistos = set()
+    for bruto in payload.numero_seriais:
+        serial = _serial_limpo(bruto)
+        if not serial:
+            continue
+        if serial in vistos:
+            recusados.append(schemas.SerialRecusado(numero_serial=serial, motivo="Repetido na lista."))
+            continue
+        vistos.add(serial)
+        modelo, erro = classificar_serial(serial)
+        if erro:
+            recusados.append(schemas.SerialRecusado(numero_serial=serial, motivo=erro))
+            continue
+        if _serial_ja_existe(db, serial):
+            recusados.append(schemas.SerialRecusado(numero_serial=serial, motivo="Já cadastrado."))
+            continue
+        aceitos.append((serial, modelo))
+
+    if not aceitos:
+        return schemas.DispositivoLoteResponse(qtd=0, dispositivos=[], recusados=recusados)
+
     agora = datetime.now()
     novos = [
         models.Dispositivo(
-            modelo=payload.modelo,
+            modelo=modelo,
             numero_serial=serial,
             estado=payload.estado,
             aquisicao=aquisicao,
@@ -290,7 +305,7 @@ def criar_dispositivos_lote(
             adquirente=adquirente_id,
             em_evento=False,
         )
-        for serial in seriais
+        for serial, modelo in aceitos
     ]
     try:
         db.add_all(novos)
@@ -304,7 +319,7 @@ def criar_dispositivos_lote(
         raise HTTPException(status_code=400, detail="Não foi possível cadastrar as máquinas. Verifique os seriais.")
 
     criados = [_dispositivo_por_id(db, item.id) or item for item in novos]
-    return schemas.DispositivoLoteResponse(qtd=len(criados), dispositivos=criados)
+    return schemas.DispositivoLoteResponse(qtd=len(criados), dispositivos=criados, recusados=recusados)
 
 
 # Tem de ficar ANTES de /dispositivos/{item_id}, senão "dashboard" vira id.
@@ -360,7 +375,7 @@ def obter_dispositivo(item_id: int, db: Session = Depends(get_db), user: models.
 
 
 @router.put("/dispositivos/{item_id}", response_model=schemas.DispositivoResponse)
-def atualizar_dispositivo(item_id: int, dispositivo: schemas.DispositivoCreate, db: Session = Depends(get_db), user: models.DadosUsuario = Depends(get_current_user)):
+def atualizar_dispositivo(item_id: int, dispositivo: schemas.DispositivoCreate, db: Session = Depends(get_db), user: models.DadosUsuario = Depends(exigir_permissao("alterar_estoque"))):
     item = db.query(models.Dispositivo).filter(models.Dispositivo.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Dispositivo não encontrado")
@@ -429,7 +444,7 @@ def atualizar_dispositivo(item_id: int, dispositivo: schemas.DispositivoCreate, 
 
 
 @router.delete("/dispositivos/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-def deletar_dispositivo(item_id: int, db: Session = Depends(get_db), user: models.DadosUsuario = Depends(get_current_user)):
+def deletar_dispositivo(item_id: int, db: Session = Depends(get_db), user: models.DadosUsuario = Depends(exigir_permissao("alterar_estoque"))):
     item = db.query(models.Dispositivo).filter(models.Dispositivo.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Dispositivo não encontrado")
@@ -438,3 +453,23 @@ def deletar_dispositivo(item_id: int, db: Session = Depends(get_db), user: model
     db.delete(item)
     db.commit()
     return
+
+
+@router.post("/dispositivos/{item_id}/desvincular", response_model=schemas.DispositivoResponse)
+def desvincular_maquina(
+    item_id: int,
+    db: Session = Depends(get_db),
+    user: models.DadosUsuario = Depends(exigir_permissao("desvincular_maquina")),
+):
+    item = db.query(models.Dispositivo).filter(models.Dispositivo.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Dispositivo não encontrado")
+    if item.cliente:
+        registrar(db, tipo="DESVINCULO_CLIENTE", dispositivo=item, cliente_id=item.cliente, usuario=user)
+    item.cliente = None
+    item.fornecedor = None
+    if item.estado == "NO CLIENTE":
+        item.estado = "ESTOQUE"
+    item.data_ultima_atualizacao = datetime.now()
+    db.commit()
+    return _dispositivo_por_id(db, item.id)

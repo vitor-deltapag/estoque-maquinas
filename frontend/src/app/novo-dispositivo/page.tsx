@@ -13,15 +13,8 @@ function serialLimpo(valor: string) {
   return valor.trim().toUpperCase();
 }
 
-function seriaisDoFormulario(atual: string[], digitado: string) {
-  const vistos = new Set(atual);
-  const proximo = [...atual];
-  for (const serial of digitado.split(/[\n,;]+/).map(serialLimpo).filter(Boolean)) {
-    if (vistos.has(serial)) continue;
-    vistos.add(serial);
-    proximo.push(serial);
-  }
-  return proximo;
+function seriaisDoTexto(texto: string) {
+  return texto.split(/[\n,;]+/).map(serialLimpo).filter(Boolean);
 }
 
 // ============================================================================
@@ -108,12 +101,12 @@ export default function NovoDispositivo() {
   const [formData, setFormData] = useState({
     mid: "", fornecedor_nome: "", adquirente_nome: "", aquisicao: ""
   });
-  const [buscaSerial, setBuscaSerial] = useState("");
-  const [seriais, setSeriais] = useState<string[]>([]);
+  const [textoSeriais, setTextoSeriais] = useState("");
+  const [recusados, setRecusados] = useState<{ numero_serial: string; motivo: string }[]>([]);
   const [isParceiro, setIsParceiro] = useState(false);
   const [nomeClienteVisual, setNomeClienteVisual] = useState("");
   const [clienteInativo, setClienteInativo] = useState(false);
-  const listaSeriaisAtual = seriaisDoFormulario(seriais, buscaSerial);
+  const listaSeriaisAtual = seriaisDoTexto(textoSeriais);
   const { modelo: modeloInferido, conflito: conflitoModelo } = modeloDoLote(listaSeriaisAtual);
   const estadoInferido = formData.mid.trim() ? "NO CLIENTE" : "ESTOQUE";
 
@@ -189,26 +182,11 @@ export default function NovoDispositivo() {
     setFormData({ ...formData, [name]: value });
   };
 
-  const adicionarEmLote = () => {
-    const pedacos = buscaSerial.split(/[\n,;]+/).map(serialLimpo).filter(Boolean);
-    if (!pedacos.length) return;
-    setSeriais((atual) => seriaisDoFormulario(atual, buscaSerial));
-    setBuscaSerial("");
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const listaSeriais = seriaisDoFormulario(seriais, buscaSerial);
+    const listaSeriais = seriaisDoTexto(textoSeriais);
     if (listaSeriais.length === 0) {
       setMensagem({ tipo: "erro", texto: "Informe ao menos um número serial." });
-      return;
-    }
-    if (conflitoModelo) {
-      setMensagem({ tipo: "erro", texto: "Todos os seriais do lote precisam ser do mesmo modelo." });
-      return;
-    }
-    if (!modeloInferido) {
-      setMensagem({ tipo: "erro", texto: "Serial não corresponde a um modelo conhecido." });
       return;
     }
     if (isParceiro && !formData.adquirente_nome) {
@@ -244,12 +222,20 @@ export default function NovoDispositivo() {
 
       if (response.ok) {
         const criado = await response.json();
-        const qtd = criado.qtd || listaSeriais.length;
+        const qtd = criado.qtd || 0;
+        const listaRecusados = Array.isArray(criado.recusados) ? criado.recusados : [];
+        setRecusados(listaRecusados);
+        if (qtd === 0) {
+          setMensagem({ tipo: "erro", texto: "Nenhuma máquina foi cadastrada." });
+          return;
+        }
         setMensagem({
           tipo: "sucesso",
           texto: qtd === 1 ? "Dispositivo cadastrado com sucesso!" : `${qtd} dispositivos cadastrados com sucesso!`,
         });
-        setTimeout(() => router.push("/dispositivos"), 1500);
+        if (listaRecusados.length === 0) {
+          setTimeout(() => router.push("/dispositivos"), 1500);
+        }
       } else {
         const dadosErro = await response.json();
         const detalhe = dadosErro.detail;
@@ -265,14 +251,14 @@ export default function NovoDispositivo() {
     }
   };
 
-  const qtdParaSalvar = seriaisDoFormulario(seriais, buscaSerial).length;
+  const qtdParaSalvar = new Set(listaSeriaisAtual).size;
 
   return (
     <main className="min-h-screen bg-gray-50 py-10 px-4 dark:bg-gray-950 transition-colors">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-md border border-gray-100 p-8 dark:bg-gray-900 transition-colors">
         <h1 className="text-2xl font-bold text-gray-800 mb-2 dark:text-gray-100 transition-colors">Cadastrar Dispositivo</h1>
         <p className="text-sm text-gray-500 mb-6">
-          Um ou vários seriais. Modelo, estado, aquisição, MID, fornecedor e parceiro valem para todas as máquinas do lote.
+          Cole a coluna do Excel, um serial por linha. Aquisição, MID e parceiro valem para o lote. O modelo sai de cada serial.
         </p>
 
         {mensagem.texto && (
@@ -283,45 +269,22 @@ export default function NovoDispositivo() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2 dark:text-gray-300 transition-colors">Número serial *</label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={buscaSerial}
-                onChange={(e) => setBuscaSerial(e.target.value.toUpperCase())}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    adicionarEmLote();
-                  }
-                }}
-                placeholder="Serial, vários separados por vírgula ou Enter"
-                className="w-full bg-white border border-gray-300 rounded-lg p-2.5 text-black font-medium focus:ring-2 focus:ring-orange-500 outline-none dark:bg-gray-900 dark:border-gray-700 dark:text-white transition-colors"
-              />
-              <button
-                type="button"
-                onClick={adicionarEmLote}
-                className="shrink-0 bg-orange-600 hover:bg-orange-700 text-white font-semibold px-4 rounded-lg text-sm"
-              >
-                Adicionar
-              </button>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {seriais.length === 0 ? (
-                <p className="text-sm text-gray-400">Nenhuma máquina na lista. Um serial também pode ir direto no Salvar.</p>
-              ) : (
-                seriais.map((serial) => (
-                  <button
-                    key={serial}
-                    type="button"
-                    onClick={() => setSeriais((atual) => atual.filter((item) => item !== serial))}
-                    className="text-xs font-bold bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200 py-1 px-2.5 rounded-md"
-                  >
-                    {serial} ✕
-                  </button>
-                ))
-              )}
-            </div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2 dark:text-gray-300 transition-colors">Números seriais *</label>
+            <textarea
+              value={textoSeriais}
+              onChange={(e) => setTextoSeriais(e.target.value.toUpperCase())}
+              rows={8}
+              placeholder={"Um serial por linha\nVF8...  X990\nPB...   P2\n4A...   L300\n14...   A910\n6...    S920"}
+              className="w-full bg-white border border-gray-300 rounded-lg p-2.5 text-black font-medium focus:ring-2 focus:ring-orange-500 outline-none dark:bg-gray-900 dark:border-gray-700 dark:text-white transition-colors font-mono"
+            />
+            <p className="mt-1 text-xs text-gray-500">{qtdParaSalvar} serial{qtdParaSalvar === 1 ? "" : "is"} na lista</p>
+            {recusados.length > 0 && (
+              <ul className="mt-3 text-sm text-red-700 dark:text-red-300 space-y-1">
+                {recusados.map((item) => (
+                  <li key={`${item.numero_serial}-${item.motivo}`}>{item.numero_serial}: {item.motivo}</li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <div>

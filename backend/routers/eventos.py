@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
 
 from database import get_db
-from deps import get_current_user
+from deps import exigir_permissao, get_current_user
 from helpers import empty_to_none
 from log import logger
 import models
@@ -76,7 +76,7 @@ def listar_eventos(
 def criar_evento(
     payload: schemas.EventoCreate,
     db: Session = Depends(get_db),
-    user: models.DadosUsuario = Depends(get_current_user),
+    user: models.DadosUsuario = Depends(exigir_permissao("alterar_estoque")),
 ):
     if payload.data_fim < payload.data_inicio:
         raise HTTPException(status_code=400, detail="A data de término deve ser igual ou posterior à data do evento.")
@@ -171,7 +171,7 @@ def obter_evento(
 def finalizar_evento(
     item_id: int,
     db: Session = Depends(get_db),
-    user: models.DadosUsuario = Depends(get_current_user),
+    user: models.DadosUsuario = Depends(exigir_permissao("alterar_estoque")),
 ):
     item = _evento_por_id(db, item_id)
     if not item:

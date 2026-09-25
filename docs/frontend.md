@@ -69,7 +69,7 @@ Paginação: Anterior / Página N / Próxima; `temMaisPaginas` se `dados.length 
 
 Carrega `GET /clientes` (página default 20 — a confirmação de MID neste ecrã usa essa lista em memória, não o search do servidor). Fornecedores todos. Parceiros `limit=500`.
 
-Seriais em lote: mesmo padrão do evento (split `/[\n,;]+/`, Enter adiciona, chips removíveis). O valor é forçado a maiúsculas no `onChange` e em `serialLimpo` — chip e POST saem iguais (`pb123` → `PB123`). Salvar inclui o texto ainda no campo. POST `/dispositivos/lote`. Modelo **não** é dropdown: inferido pelo prefixo do serial (`src/lib/modeloSerial.ts`) e mostrado só leitura. Sem match → `Serial não corresponde a um modelo conhecido.`; lote com prefixos de modelos diferentes → `Todos os seriais do lote precisam ser do mesmo modelo.`. Estado **não** é dropdown: sem MID → `ESTOQUE`; com MID → `NO CLIENTE`. Aquisição (comprada/alugada) é dropdown obrigatório. Mensagem no sucesso: um vs N.
+Seriais em lote: textarea, um por linha (também aceita vírgula e ponto e vírgula). O valor é forçado a maiúsculas. POST `/dispositivos/lote`. Modelo **não** é dropdown: prefixo e tamanho (`src/lib/modeloSerial.ts`) — VF8/10 X990, PB/13 P2 BIN, 4A/9 L300, 14/10 A910, 6/8 S920. O lote pode misturar modelos. Serial ruim ou repetido volta em `recusados` e o restante é gravado. Estado **não** é dropdown: sem MID → `ESTOQUE`; com MID → `NO CLIENTE`. Aquisição (comprada/alugada) é dropdown obrigatório.
 
 Confirmação MID: `Nome (Fantasia ou Sem Nome Fantasia)` ou `⚠️ MID não localizado no sistema`. Estilo: laranja fundo se ok, âmbar se aviso.
 
@@ -96,11 +96,11 @@ MID, razão \*, fantasia, Parceiro. `useEffect` lê `?parceiro=true`. Cancelar �
 
 ## Eventos lista `/eventos`
 
-GET `/eventos`, sort client-side `{ PENDENTE: 0, ABERTO: 1, FINALIZADO: 2 }`. Badge cores: PENDENTE vermelho, FINALIZADO cinza, ABERTO índigo. Datas `dd/mm/aaaa` a partir de `YYYY-MM-DD`. Card liga a `/eventos/{id}`.
+GET `/eventos`. Cards do mais novo para o mais antigo, da esquerda para a direita (`created_at`). Finalizado some da grade 7 dias depois de `data_finalizacao`. Botão **Eventos finalizados** lista todos os finalizados, inclusive os que já saíram da grade. Badge cores: PENDENTE vermelho, FINALIZADO cinza, ABERTO índigo. Datas `dd/mm/aaaa` a partir de `YYYY-MM-DD`. Card liga a `/eventos/{id}`.
 
 ## Novo evento `/eventos/novo`
 
-MID debounce 500 ms via `GET /clientes?search=` (match exacto `c.mid === mid.trim()`). Serial sugestões debounce 300 ms, mínimo 2 caracteres, `em_evento=false`, `limit=10`. Enter no campo chama lote (split `/[\n,;]+/`). `serialLimpo` faz trim + maiúsculas. Chips removíveis.
+MID debounce 500 ms via `GET /clientes?search=` (match exacto `c.mid === mid.trim()`). A caixa de seriais aceita quebra de linha, vírgula e ponto e vírgula. `serialLimpo` faz trim + maiúsculas.
 
 Validação local antes do POST: MID, as duas datas, pelo menos um serial.
 

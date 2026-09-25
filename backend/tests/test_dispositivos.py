@@ -258,14 +258,16 @@ def test_criar_dispositivos_lote_ok(client, as_comum, db_session):
             "estado": "NO CLIENTE", "aquisicao": "ALUGADA",
             "mid": "MIDL",
             "fornecedor_nome": "FornL",
-            "numero_seriais": ["LOT-A", "LOT-B", " LOT-A ", ""],
+            "numero_seriais": ["PB12345678901", "PB12345678902", " PB12345678901 ", ""],
         },
     )
     assert res.status_code == 201
     body = res.json()
     assert body["qtd"] == 2
+    assert len(body["recusados"]) == 1
+    assert body["recusados"][0]["motivo"] == "Repetido na lista."
     seriais = {d["numero_serial"] for d in body["dispositivos"]}
-    assert seriais == {"LOT-A", "LOT-B"}
+    assert seriais == {"PB12345678901", "PB12345678902"}
     assert all(d["em_evento"] is False for d in body["dispositivos"])
     assert all(d["cliente"] == cli.id for d in body["dispositivos"])
     assert all(d["fornecedor"] == forn.id for d in body["dispositivos"])
@@ -279,13 +281,13 @@ def test_criar_dispositivos_lote_serial_maiusculo(client, as_comum):
             "modelo": "P2 BIN",
             "estado": "ESTOQUE",
             "aquisicao": "ALUGADA",
-            "numero_seriais": ["pb123", "PB123", " pb456 "],
+            "numero_seriais": ["pb12345678901", "PB12345678901", " pb12345678902 "],
         },
     )
     assert res.status_code == 201
     body = res.json()
     assert body["qtd"] == 2
-    assert {d["numero_serial"] for d in body["dispositivos"]} == {"PB123", "PB456"}
+    assert {d["numero_serial"] for d in body["dispositivos"]} == {"PB12345678901", "PB12345678902"}
 
 
 def test_criar_dispositivos_lote_vazio(client, as_comum):
@@ -294,14 +296,7 @@ def test_criar_dispositivos_lote_vazio(client, as_comum):
     assert "ao menos um" in res.json()["detail"]
 
 
-def test_criar_dispositivos_lote_exige_modelo_e_estado(client, as_comum):
-    sem_modelo = client.post(
-        "/dispositivos/lote",
-        json={"numero_seriais": ["LOT-MOD"], "estado": "ESTOQUE", "aquisicao": "ALUGADA"},
-    )
-    assert sem_modelo.status_code == 400
-    assert "modelo" in sem_modelo.json()["detail"].lower()
-
+def test_criar_dispositivos_lote_exige_estado(client, as_comum):
     sem_estado = client.post(
         "/dispositivos/lote",
         json={"numero_seriais": ["LOT-EST"], "modelo": "X"},
@@ -310,16 +305,20 @@ def test_criar_dispositivos_lote_exige_modelo_e_estado(client, as_comum):
     assert "estado" in sem_estado.json()["detail"].lower()
 
 
-def test_criar_dispositivos_lote_serial_existente_nao_grava_nenhum(client, as_comum, db_session):
-    seed_dispositivo(db_session, serial="LOT-DUP")
+def test_criar_dispositivos_lote_serial_existente_grava_o_resto(client, as_comum, db_session):
+    seed_dispositivo(db_session, serial="PB12345678901")
     res = client.post(
         "/dispositivos/lote",
-        json={"numero_seriais": ["LOT-NOVO", "LOT-DUP"], "modelo": "X", "estado": "ESTOQUE", "aquisicao": "ALUGADA"},
+        json={"numero_seriais": ["PB12345678902", "PB12345678901", "FV81234567"], "estado": "ESTOQUE", "aquisicao": "ALUGADA"},
     )
-    assert res.status_code == 400
-    assert "LOT-DUP" in res.json()["detail"]
-    lista = client.get("/dispositivos?search=LOT-NOVO")
-    assert lista.json() == []
+    assert res.status_code == 201
+    body = res.json()
+    assert body["qtd"] == 1
+    assert body["dispositivos"][0]["numero_serial"] == "PB12345678902"
+    assert body["dispositivos"][0]["modelo"] == "P2 BIN"
+    motivos = {item["numero_serial"]: item["motivo"] for item in body["recusados"]}
+    assert "Já cadastrado" in motivos["PB12345678901"]
+    assert "fora do padrão" in motivos["FV81234567"]
 
 
 def test_criar_dispositivos_lote_estoque_mid_fornecedor(client, as_comum, db_session):
@@ -332,16 +331,16 @@ def test_criar_dispositivos_lote_estoque_mid_fornecedor(client, as_comum, db_ses
             "estado": "ESTOQUE", "aquisicao": "ALUGADA",
             "mid": "MIDE",
             "fornecedor_nome": "FornE",
-            "numero_seriais": ["LOT-E1", "LOT-E2"],
+            "numero_seriais": ["PB12345678901", "PB12345678902"],
         },
     )
     assert res.status_code == 400
     assert "ESTOQUE" in res.json()["detail"]
-    assert client.get("/dispositivos?search=LOT-E1").json() == []
+    assert client.get("/dispositivos?search=PB12345678901").json() == []
 
 
 def test_criar_dispositivos_lote_mid_inexistente(client, as_comum):
-    res = client.post("/dispositivos/lote", json={"mid": "NAO", "numero_seriais": ["LOT-M1"], "modelo": "X", "estado": "NO CLIENTE", "aquisicao": "ALUGADA"})
+    res = client.post("/dispositivos/lote", json={"mid": "NAO", "numero_seriais": ["PB12345678901"], "modelo": "X", "estado": "NO CLIENTE", "aquisicao": "ALUGADA"})
     assert res.status_code == 400
     assert "MID" in res.json()["detail"]
 
@@ -354,7 +353,7 @@ def test_criar_dispositivos_lote_com_parceiro(client, as_comum, db_session):
             "modelo": "D175",
             "estado": "ESTOQUE", "aquisicao": "ALUGADA",
             "adquirente_nome": "Stone",
-            "numero_seriais": ["LOT-P1", "LOT-P2"],
+            "numero_seriais": ["VF81234567", "4A1234567"],
         },
     )
     assert res.status_code == 201
@@ -365,7 +364,7 @@ def test_criar_dispositivos_lote_com_parceiro(client, as_comum, db_session):
 
 def test_criar_dispositivos_lote_integrity(client, as_comum, db_session):
     db_session.commit = lambda: (_ for _ in ()).throw(IntegrityError("x", {}, Exception("d")))
-    res = client.post("/dispositivos/lote", json={"numero_seriais": ["LOT-I"], "modelo": "X", "estado": "ESTOQUE", "aquisicao": "ALUGADA"})
+    res = client.post("/dispositivos/lote", json={"numero_seriais": ["61234567"], "modelo": "X", "estado": "ESTOQUE", "aquisicao": "ALUGADA"})
     assert res.status_code == 400
     assert "seriais" in res.json()["detail"]
 

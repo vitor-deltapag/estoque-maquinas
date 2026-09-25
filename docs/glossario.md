@@ -46,7 +46,7 @@ Termos usados na UI, na API e no banco. O mesmo conceito pode ter **nome de ecr�
 
 | Termo | Significado |
 | --- | --- |
-| **Lote de máquinas** | Cadastro: `POST /dispositivos/lote` com N seriais e os mesmos modelo/estado/MID/fornecedor/parceiro. Tudo ou nada. Distinto do lote de **evento**. |
+| **Lote de máquinas** | Cadastro: `POST /dispositivos/lote` com N seriais. Aquisição, MID e parceiro valem para o lote; o modelo sai de cada serial. Serial inválido ou repetido não cancela o restante. Distinto do lote de **evento**. |
 | **status (banco)** | `ABERTO` ou `FINALIZADO`. Persistido. |
 | **situacao (API/UI)** | Calculada: `FINALIZADO` se status finalizado; senão `PENDENTE` se `data_fim < hoje`; senão `ABERTO`. |
 | **PENDENTE** | Evento acabou no calendário e ainda não foi finalizado. Aviso para **cobrar devolução**. |

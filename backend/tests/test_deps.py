@@ -22,7 +22,7 @@ def test_hs256_cria_usuario_no_primeiro_acesso(client, db_session):
     assert res.status_code == 200
     body = res.json()
     assert body["email"] == "novo@teste.local"
-    assert body["perfil"] == "COMUM"
+    assert body["perfil"] == "OPERACIONAL"
     assert db_session.query(models.DadosUsuario).filter_by(email="novo@teste.local").one()
 
 

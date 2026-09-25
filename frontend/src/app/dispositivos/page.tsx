@@ -51,7 +51,20 @@ function GerenciamentoDispositivos() {
   const [nomeClienteVisual, setNomeClienteVisual] = useState("");
   const [midOriginal, setMidOriginal] = useState("");
   const [clienteInativo, setClienteInativo] = useState(false);
+  const [podeAlterar, setPodeAlterar] = useState(false);
+  const [podeDesvincular, setPodeDesvincular] = useState(false);
   const modeloDaFicha = modeloPorSerial(formData.numero_serial);
+
+  useEffect(() => {
+    apiFetch("/usuarios/me", { cache: "no-store" })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const me = await res.json();
+        setPodeAlterar(Boolean(me.permissoes?.alterar_estoque));
+        setPodeDesvincular(Boolean(me.permissoes?.desvincular_maquina));
+      })
+      .catch(console.error);
+  }, []);
 
   useEffect(() => {
     setPaginaAtual(1);
@@ -252,6 +265,27 @@ function GerenciamentoDispositivos() {
     setLoadingEstado(null);
   };
 
+  const handleDesvincular = async () => {
+    if (!window.confirm(`Desvincular a máquina ${formData.numero_serial} do cliente?`)) return;
+    setLoadingSalvar(true);
+    setMensagemModal({ tipo: "", texto: "" });
+    try {
+      const response = await apiFetch(`/dispositivos/${formData.id}/desvincular`, { method: "POST" });
+      if (response.ok) {
+        setMensagemModal({ tipo: "sucesso", texto: "Máquina desvinculada." });
+        recarregarLista();
+        setTimeout(() => setModalAberto(false), 1000);
+      } else {
+        const erro = await response.json().catch(() => null);
+        setMensagemModal({ tipo: "erro", texto: erro?.detail || "Não foi possível desvincular." });
+      }
+    } catch {
+      setMensagemModal({ tipo: "erro", texto: "Erro de conexão." });
+    } finally {
+      setLoadingSalvar(false);
+    }
+  };
+
   // 6. EXCLUI O DISPOSITIVO (DELETE)
   const handleExcluirDispositivo = async () => {
     const confirmar = window.confirm(`Tem certeza absoluta que deseja remover a máquina com serial ${formData.numero_serial} do estoque?`);
@@ -302,12 +336,14 @@ function GerenciamentoDispositivos() {
           <p className="text-sm text-gray-900 mt-1 font-medium dark:text-white transition-colors">Clique sobre qualquer card de máquina para visualizar a ficha completa ou realizar alterações.</p>
         </div>
 
+        {podeAlterar && (
         <Link
           href="/novo-dispositivo"
           className="w-full md:w-auto text-center bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2.5 px-5 rounded-lg text-sm shadow-sm transition-colors"
         >
           + Cadastrar Máquina
         </Link>
+        )}
       </div>
 
       {/* BARRA DE PESQUISA */}
@@ -442,7 +478,7 @@ function GerenciamentoDispositivos() {
               </div>
             )}
 
-            <form onSubmit={handleSalvarEdicao} className="space-y-5">
+            <form onSubmit={(e) => { if (!podeAlterar) { e.preventDefault(); return; } handleSalvarEdicao(e); }} className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                 <div>
@@ -468,6 +504,7 @@ function GerenciamentoDispositivos() {
                 <p className={classeMostradorEstado(formData.estado)}>
                   {rotuloEstado(formData.estado)}
                 </p>
+                {podeAlterar && (
                 <div className="mt-2 flex flex-col sm:flex-row gap-2">
                   <button
                     type="button"
@@ -486,6 +523,7 @@ function GerenciamentoDispositivos() {
                     {loadingEstado === "MAQUINA PERDIDA" ? "Alterando..." : formData.estado === "MAQUINA PERDIDA" ? "Desmarcar máquina perdida" : "Marcar máquina perdida"}
                   </button>
                 </div>
+                )}
                 <p className="mt-1.5 text-xs text-gray-500">
                   Sem MID o estado volta para estoque. Com MID, volta para no cliente.
                 </p>
@@ -512,7 +550,7 @@ function GerenciamentoDispositivos() {
 
               <div className="border-t pt-4">
                 <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">MID do Cliente Vinculado</label>
-                <input type="text" value={formData.mid} onChange={e => setFormData({ ...formData, mid: e.target.value })} placeholder="Digite o MID para vincular o cliente..." className="w-full bg-white border border-gray-300 rounded-lg p-2.5 text-gray-900 font-bold outline-none focus:ring-2 focus:ring-orange-500 text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white transition-colors" />
+                <input type="text" value={formData.mid} readOnly={!podeAlterar} onChange={e => setFormData({ ...formData, mid: e.target.value })} placeholder="Digite o MID para vincular o cliente..." className="w-full bg-white border border-gray-300 rounded-lg p-2.5 text-gray-900 font-bold outline-none focus:ring-2 focus:ring-orange-500 text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white transition-colors" />
                 {nomeClienteVisual && (
                   <p className={`mt-2 text-xs font-bold ${nomeClienteVisual.includes('⚠️') ? 'text-amber-600' : 'text-orange-600 bg-orange-50 py-1 px-2.5 rounded-md inline-block'}`}>
                     {nomeClienteVisual}
@@ -539,6 +577,7 @@ function GerenciamentoDispositivos() {
 
               <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-6 border-t mt-4">
 
+                {podeAlterar && (
                 <button
                   type="button"
                   onClick={handleExcluirDispositivo}
@@ -547,7 +586,20 @@ function GerenciamentoDispositivos() {
                 >
                   🗑️ {loadingExcluir ? "Excluindo..." : "Excluir Máquina"}
                 </button>
+                )}
 
+                {podeDesvincular && formData.mid && (
+                <button
+                  type="button"
+                  onClick={handleDesvincular}
+                  disabled={loadingSalvar}
+                  className="w-full sm:w-auto border border-orange-500 text-orange-700 dark:text-orange-300 font-semibold py-2.5 px-5 rounded-lg text-sm"
+                >
+                  Desvincular
+                </button>
+                )}
+
+                {podeAlterar && (
                 <button
                   type="submit"
                   disabled={loadingSalvar || loadingExcluir}
@@ -555,6 +607,7 @@ function GerenciamentoDispositivos() {
                 >
                   {loadingSalvar ? "Salvando..." : "Salvar Alterações"}
                 </button>
+                )}
 
               </div>
             </form>

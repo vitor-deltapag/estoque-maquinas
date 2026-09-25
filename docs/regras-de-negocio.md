@@ -4,14 +4,14 @@
 
 | Condição | Resultado |
 | --- | --- |
-| Serial preenchido e já existe noutra linha (ignora maiúscula/minúscula) | 400, não grava (no lote: 400 e **nenhuma** máquina do lote) |
+| Serial preenchido e já existe noutra linha (ignora maiúscula/minúscula) | POST unitário: 400, não grava. No lote: esse serial entra em `recusados` e o restante válido é gravado |
 | Serial vazio / só espaços | POST unitário grava `NULL` (`empty_to_none`); lote ignora o item; sem nenhum serial válido → 400 |
 | Serial com letras | Gravado em maiúsculas (`pb123` → `PB123`) |
-| Modelo vazio no POST / lote | 400 `Informe o modelo da máquina.` (edição PUT ainda aceita vazio por legado) |
+| Modelo vazio no POST unitário | 400 `Informe o modelo da máquina.` (edição PUT ainda aceita vazio por legado). No lote o modelo sai do prefixo e do tamanho do serial |
 | Estado vazio no POST / lote | 400 `Informe o estado atual da máquina.` |
 | Aquisição vazia no POST / lote | 400 `Informe se a máquina é comprada ou alugada.` |
 | Aquisição fora de `COMPRADA` / `ALUGADA` | 400 `Aquisição inválida. Use COMPRADA ou ALUGADA.` |
-| Seriais repetidos no payload do lote | Contam uma vez (trim + maiúsculas) |
+| Seriais repetidos no payload do lote | O primeiro vale; a repetição vai para `recusados` com motivo `Repetido na lista.` Prefixo e tamanho: VF8/X990/10, PB/P2 BIN/13, 4A/L300/9, 14/A910/10, 6/S920/8. Fora do padrão ou tamanho errado não grava esse serial |
 | MID preenchido e não existe `cliente.mid` exacto | 400 |
 | MID de cliente com `status` preenchido e diferente de `ATIVO` | 400. Máquina que já está nesse cliente pode ser salva sem trocar o MID. Sem `status` (ainda não veio da Movingpay) o vínculo segue |
 | MID vazio | `dispositivos.cliente = NULL`. Na tela, o distribuidor some junto |
@@ -126,9 +126,9 @@ O total da semana é a soma dessas linhas. Cada registro guarda o nome do usuár
 
 | Condição | Resultado |
 | --- | --- |
-| JWT ok, sem linha `dados_usuario` | INSERT nome=local-part, email, COMUM, ATIVO |
+| JWT ok, sem linha `dados_usuario` | INSERT nome=local-part, email, OPERACIONAL, ATIVO |
 | status INATIVO (qualquer casing) | 403 `Usuário inativo` |
-| COMUM em `/usuarios` (não `/me`) | 403 |
+| Sem `gerir_usuarios` em `/usuarios` (não `/me`) | 403. Padrão: só ADMIN. `permissoes` JSON no usuário substitui o padrão do perfil |
 | POST sem nome | 400 `Informe o nome completo.` |
 | POST sem e-mail ou senha | 400 `E-mail e senha são obrigatórios.` |
 | POST senha com menos de 8 caracteres | 400 |

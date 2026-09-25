@@ -61,15 +61,15 @@ Menu Distribuidores → **+ Novo Distribuidor**. Nome e código na tabela `forne
 ## 5. Cadastrar máquina (uma ou em lote)
 
 1. Cadastros → Máquina (`/novo-dispositivo`) ou Máquinas → + Cadastrar Máquina.
-2. Número serial \*: campo + Adicionar. Aceita um serial, vários separados por vírgula / ponto e vírgula / Enter. Clique no chip remove. Se o campo ainda tiver texto no Salvar, esse serial também entra no lote.
-3. Modelo: mostrador só leitura, preenchido pelo prefixo do serial (VF8→X990, PB→P2 BIN, 4A→L300, 14→A910, 6→S920). Sem match ou lote misto, o Salvar para.
+2. Números seriais: caixa de várias linhas. Cole a coluna do Excel, um serial por linha.
+3. Modelo: mostrador só leitura, pelo prefixo e pelo tamanho (VF8/10→X990, PB/13→P2 BIN, 4A/9→L300, 14/10→A910, 6/8→S920). O lote pode misturar modelos.
 4. Nome do fornecedor (datalist com `GET /fornecedores`).
 5. MID: ao digitar, se lista local de clientes (primeira página de `GET /clientes`) tiver MID exacto, mostra `Nome (Fantasia)` a laranja; senão “MID não localizado no sistema”.
 6. Estado: mostrador só leitura. Sem MID → `ESTOQUE`; com MID → `NO CLIENTE`. Reparo e máquina perdida não entram no cadastro.
 7. Máquina de parceiro Sim/Não. Se Sim, dropdown de `GET /clientes?parceiro=true&limit=500` pelo **nome**.
 8. Em evento: **mostrador “Não”** (não editável). Texto: entra em evento pela aba Eventos.
-9. POST `/dispositivos/lote` (também para um único serial). **Não** envia `em_evento` (a API força `false`). Um serial duplicado no banco cancela o lote inteiro.
-10. Trava local: pelo menos um serial; serial com prefixo conhecido e todos do mesmo modelo; aquisição obrigatória; parceiro Sim sem nome de parceiro.
+9. POST `/dispositivos/lote` (também para um único serial). **Não** envia `em_evento` (a API força `false`). Serial duplicado, fora do padrão ou com tamanho errado é ignorado e listado; os válidos são gravados.
+10. Trava local: pelo menos um serial; aquisição obrigatória; parceiro Sim sem nome de parceiro.
 11. Sucesso: mensagem (1 vs N) e ao fim de 1,5 s vai a `/dispositivos`.
 
 O POST unitário `POST /dispositivos` continua na API para um serial só; o formulário de cadastro usa sempre o lote.

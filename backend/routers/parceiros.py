@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_, func
 
 from database import get_db
-from deps import get_current_user
+from deps import exigir_permissao, get_current_user
 from helpers import empty_to_none
 from log import logger
 import models
@@ -93,7 +93,7 @@ def listar_parceiros(
 def criar_parceiro(
     payload: schemas.ParceiroCreate,
     db: Session = Depends(get_db),
-    user: models.DadosUsuario = Depends(get_current_user),
+    user: models.DadosUsuario = Depends(exigir_permissao("alterar_estoque")),
 ):
     novo = models.Cliente(
         nome=payload.nome,
@@ -130,7 +130,7 @@ def atualizar_parceiro(
     item_id: int,
     payload: schemas.ParceiroCreate,
     db: Session = Depends(get_db),
-    user: models.DadosUsuario = Depends(get_current_user),
+    user: models.DadosUsuario = Depends(exigir_permissao("alterar_estoque")),
 ):
     item = db.query(models.Cliente).filter(
         models.Cliente.id == item_id, models.Cliente.parceiro.is_(True)
@@ -155,7 +155,7 @@ def atualizar_parceiro(
 def deletar_parceiro(
     item_id: int,
     db: Session = Depends(get_db),
-    user: models.DadosUsuario = Depends(get_current_user),
+    user: models.DadosUsuario = Depends(exigir_permissao("alterar_estoque")),
 ):
     item = db.query(models.Cliente).filter(
         models.Cliente.id == item_id, models.Cliente.parceiro.is_(True)

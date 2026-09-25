@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { apiFetch } from "../../lib/api";
 
 function segundaDe(iso: string) {
@@ -57,6 +58,8 @@ function baixarRegistros(resumo: any) {
 }
 
 export default function MovimentacoesPage() {
+  const router = useRouter();
+  const [podeBaixar, setPodeBaixar] = useState(false);
   const [semana, setSemana] = useState(segundaDe(new Date().toISOString().slice(0, 10)));
   const [resumo, setResumo] = useState<any>(null);
   const [carregando, setCarregando] = useState(true);
@@ -106,6 +109,20 @@ export default function MovimentacoesPage() {
       });
     return () => ac.abort();
   }, [termoBuscaReal]);
+
+  useEffect(() => {
+    apiFetch("/usuarios/me", { cache: "no-store" })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const me = await res.json();
+        if (!me.permissoes?.ver_movimentacoes) {
+          router.replace("/");
+          return;
+        }
+        setPodeBaixar(Boolean(me.permissoes?.baixar_movimentacoes));
+      })
+      .catch(console.error);
+  }, [router]);
 
   useEffect(() => {
     setCarregando(true);
@@ -293,6 +310,7 @@ export default function MovimentacoesPage() {
                   ))}
                 </ul>
               )}
+              {podeBaixar && (
               <button
                 type="button"
                 onClick={() => baixarRegistros(resumo)}
@@ -300,6 +318,7 @@ export default function MovimentacoesPage() {
               >
                 Baixar TXT
               </button>
+              )}
             </div>
           </div>
         </div>

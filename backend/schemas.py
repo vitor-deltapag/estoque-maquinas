@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 from datetime import date, datetime
 from typing import List, Optional
 
@@ -124,9 +124,15 @@ class DispositivoLoteCreate(BaseModel):
     numero_seriais: List[str]
 
 
+class SerialRecusado(BaseModel):
+    numero_serial: str
+    motivo: str
+
+
 class DispositivoLoteResponse(BaseModel):
     qtd: int
     dispositivos: List[DispositivoResponse]
+    recusados: List[SerialRecusado] = []
 
 
 class EventoCreate(BaseModel):
@@ -161,7 +167,8 @@ class DadosUsuarioBase(BaseModel):
     nome: str
     nome_fantasia: Optional[str] = None
     status: Optional[str] = "ATIVO"
-    perfil: Optional[str] = "COMUM"
+    perfil: Optional[str] = "OPERACIONAL"
+    permissoes: Optional[dict] = None
     email: Optional[str] = None
 
 class DadosUsuarioCreate(DadosUsuarioBase):
@@ -171,3 +178,21 @@ class DadosUsuarioResponse(DadosUsuarioBase):
     id: int
     created_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolver_permissoes(cls, data):
+        if isinstance(data, dict):
+            return data
+        from permissoes import efetivas
+
+        return {
+            "id": data.id,
+            "nome": data.nome,
+            "nome_fantasia": data.nome_fantasia,
+            "status": data.status,
+            "perfil": data.perfil,
+            "email": data.email,
+            "created_at": data.created_at,
+            "permissoes": efetivas(data),
+        }
