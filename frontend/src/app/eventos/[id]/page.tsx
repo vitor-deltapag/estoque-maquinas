@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { apiFetch } from "../../../lib/api";
+import { usePodeAlterar } from "../../../lib/usePodeAlterar";
 import { useMensagem } from "../../../components/ToastErro";
 
 function formatarData(valor?: string | null) {
@@ -31,6 +32,7 @@ export default function DetalheEvento() {
   const [confirmar, setConfirmar] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
   const [mensagem, setMensagem] = useMensagem();
+  const { podeAlterar } = usePodeAlterar();
 
   useEffect(() => {
     async function carregar() {
@@ -103,7 +105,7 @@ export default function DetalheEvento() {
               {formatarData(evento.data_inicio)} até {formatarData(evento.data_fim)}
             </p>
           </div>
-          {evento.status !== "FINALIZADO" && (
+          {podeAlterar && evento.status !== "FINALIZADO" && (
             <button
               type="button"
               onClick={() => setConfirmar(true)}

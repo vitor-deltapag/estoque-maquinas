@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiFetch } from "../../lib/api";
+import { usePodeAlterar } from "../../lib/usePodeAlterar";
 import { useMensagem } from "../../components/ToastErro";
 import { classeMostradorEstado, classeMostradorModelo, modeloDoLote } from "../../lib/modeloSerial";
 import { OPCOES_AQUISICAO } from "../../lib/aquisicao";
@@ -93,6 +94,7 @@ function DropdownCustomizado({ name, value, options, placeholder, onChange }: Dr
 
 export default function NovoDispositivo() {
   const router = useRouter();
+  const { podeAlterar, pronto } = usePodeAlterar();
 
   const [adquirentes, setAdquirentes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -109,6 +111,10 @@ export default function NovoDispositivo() {
   const listaSeriaisAtual = seriaisDoTexto(textoSeriais);
   const { modelo: modeloInferido, conflito: conflitoModelo } = modeloDoLote(listaSeriaisAtual);
   const estadoInferido = formData.mid.trim() ? "NO CLIENTE" : "ESTOQUE";
+
+  useEffect(() => {
+    if (pronto && !podeAlterar) router.replace("/dispositivos");
+  }, [pronto, podeAlterar, router]);
 
   useEffect(() => {
     async function carregarDados() {

@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { apiFetch } from "../../lib/api";
 import { useMensagem, useToastErro } from "../../components/ToastErro";
 import DropdownCustomizado from "../../components/DropdownCustomizado";
+import { usePodeAlterar } from "../../lib/usePodeAlterar";
+import ModalConfirmacao from "../../components/ModalConfirmacao";
 
 export default function ListaClientes() {
   // Estados do sistema
@@ -24,6 +26,8 @@ export default function ListaClientes() {
   const [modalAberto, setModalAberto] = useState(false);
   const [loadingSalvar, setLoadingSalvar] = useState(false);
   const [loadingExcluir, setLoadingExcluir] = useState(false);
+  const [confirmarExclusao, setConfirmarExclusao] = useState(false);
+  const { podeAlterar, pronto } = usePodeAlterar();
   const [mensagemModal, setMensagemModal] = useMensagem();
 
   const mostrarErro = useToastErro();
@@ -72,13 +76,14 @@ export default function ListaClientes() {
   }, [termoBuscaReal, paginaAtual, recarga]);
 
   useEffect(() => {
+    if (!pronto || !podeAlterar) return;
     apiFetch("/clientes/sincronizar", { method: "POST" })
       .then((res) => (res.ok ? res.json() : null))
       .then((corpo) => {
         if (corpo?.criados || corpo?.atualizados) setRecarga((n) => n + 1);
       })
       .catch(() => {});
-  }, []);
+  }, [pronto, podeAlterar]);
 
   const handleSincronizar = async () => {
     setSincronizando(true);
@@ -160,9 +165,6 @@ export default function ListaClientes() {
 
   // 5. EXCLUI O CLIENTE (DELETE)
   const handleExcluirCliente = async () => {
-    const confirmar = window.confirm(`Tem certeza absoluta que deseja remover o cliente "${formData.nome}"?`);
-    if (!confirmar) return;
-
     setLoadingExcluir(true);
     setMensagemModal({ tipo: "", texto: "" });
 
@@ -172,6 +174,7 @@ export default function ListaClientes() {
       });
 
       if (response.ok) {
+        setConfirmarExclusao(false);
         setMensagemModal({ tipo: "sucesso", texto: "Cliente removido com sucesso!" });
         setTermoBuscaReal(termoBuscaReal + " ");
         setTimeout(() => {
@@ -181,9 +184,11 @@ export default function ListaClientes() {
       } else {
         // Se houver máquinas vinculadas, o backend envia um erro 400
         const erro = await response.json();
+        setConfirmarExclusao(false);
         setMensagemModal({ tipo: "erro", texto: erro.detail || "Erro ao tentar excluir o cliente." });
       }
     } catch (error) {
+      setConfirmarExclusao(false);
       setMensagemModal({ tipo: "erro", texto: "Erro de rede ao processar exclusão." });
     } finally {
       setLoadingExcluir(false);
@@ -213,6 +218,7 @@ export default function ListaClientes() {
           )}
         </div>
 
+        {podeAlterar && (
         <button
           type="button"
           onClick={handleSincronizar}
@@ -221,6 +227,7 @@ export default function ListaClientes() {
         >
           {sincronizando ? "Atualizando..." : "Atualizar da Movingpay"}
         </button>
+        )}
       </div>
 
       {/* BARRA DE PESQUISA OTIMIZADA */}
@@ -346,7 +353,7 @@ export default function ListaClientes() {
               </div>
             )}
 
-            <form onSubmit={handleSalvarEdicao} className="space-y-5">
+            <form onSubmit={(e) => { if (!podeAlterar) { e.preventDefault(); return; } handleSalvarEdicao(e); }} className="space-y-5">
 
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Razão Social (Nome)</label>
@@ -397,11 +404,12 @@ export default function ListaClientes() {
                 />
               </div>
 
+              {podeAlterar && (
               <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-6 border-t mt-4">
 
                 <button
                   type="button"
-                  onClick={handleExcluirCliente}
+                  onClick={() => setConfirmarExclusao(true)}
                   disabled={loadingExcluir}
                   className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 px-5 rounded-lg text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
@@ -417,12 +425,22 @@ export default function ListaClientes() {
                 </button>
 
               </div>
+              )}
             </form>
 
           </div>
           </div>
         </div>
       )}
+      <ModalConfirmacao
+        aberto={confirmarExclusao}
+        titulo="Excluir cliente?"
+        texto={`O cliente ${formData.nome || ""} será removido. Esta ação não pode ser desfeita.`}
+        confirmarLabel="Confirmar exclusão"
+        carregando={loadingExcluir}
+        onCancelar={() => setConfirmarExclusao(false)}
+        onConfirmar={handleExcluirCliente}
+      />
     </main>
   );
 }

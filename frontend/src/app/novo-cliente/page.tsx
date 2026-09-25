@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiFetch } from "../../lib/api";
+import { usePodeAlterar } from "../../lib/usePodeAlterar";
 import DropdownCustomizado from "../../components/DropdownCustomizado";
 
 export default function NovoCliente() {
@@ -10,6 +11,11 @@ export default function NovoCliente() {
   const [formData, setFormData] = useState({ nome: "", nome_fantasia: "", mid: "" });
   const [parceiro, setParceiro] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { podeAlterar, pronto } = usePodeAlterar();
+
+  useEffect(() => {
+    if (pronto && !podeAlterar) router.replace("/clientes");
+  }, [pronto, podeAlterar, router]);
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("parceiro") === "true") {

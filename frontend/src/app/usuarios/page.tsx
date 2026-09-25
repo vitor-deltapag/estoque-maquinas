@@ -7,6 +7,7 @@ import { supabase } from "../../lib/supabase";
 import { apiFetch } from "../../lib/api";
 import { useMensagem } from "../../components/ToastErro";
 import DropdownCustomizado from "../../components/DropdownCustomizado";
+import ModalConfirmacao from "../../components/ModalConfirmacao";
 import { OPCOES_PERFIL, ROTULOS_PERMISSAO, permissoesDoPerfil, rotuloPerfil, type Permissoes } from "../../lib/permissoes";
 
 export default function ListaUsuarios() {
@@ -21,6 +22,7 @@ export default function ListaUsuarios() {
   const [modalAberto, setModalAberto] = useState(false);
   const [loadingSalvar, setLoadingSalvar] = useState(false);
   const [loadingExcluir, setLoadingExcluir] = useState(false);
+  const [confirmarExclusao, setConfirmarExclusao] = useState(false);
   const [mensagemModal, setMensagemModal] = useMensagem();
 
   const [formData, setFormData] = useState({
@@ -127,9 +129,6 @@ export default function ListaUsuarios() {
 
   // 5. EXCLUI O USUÁRIO
   const handleExcluirUsuario = async () => {
-    const confirmar = window.confirm(`Tem certeza absoluta que deseja remover o usuário ${formData.nome}?`);
-    if (!confirmar) return;
-
     setLoadingExcluir(true);
     setMensagemModal({ tipo: "", texto: "" });
 
@@ -137,13 +136,16 @@ export default function ListaUsuarios() {
       const response = await apiFetch(`/usuarios/${formData.id}`, { method: "DELETE" });
 
       if (response.ok) {
+        setConfirmarExclusao(false);
         setMensagemModal({ tipo: "sucesso", texto: "Usuário removido com sucesso!" });
         await carregarUsuarios();
         setTimeout(() => setModalAberto(false), 1000);
       } else {
+        setConfirmarExclusao(false);
         setMensagemModal({ tipo: "erro", texto: "Erro ao tentar excluir o usuário." });
       }
     } catch (error) {
+      setConfirmarExclusao(false);
       setMensagemModal({ tipo: "erro", texto: "Erro de rede ao processar exclusão." });
     } finally {
       setLoadingExcluir(false);
@@ -336,7 +338,7 @@ export default function ListaUsuarios() {
 
                 <button
                   type="button"
-                  onClick={handleExcluirUsuario}
+                  onClick={() => setConfirmarExclusao(true)}
                   disabled={loadingExcluir}
                   className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 px-5 rounded-lg text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
@@ -357,6 +359,15 @@ export default function ListaUsuarios() {
           </div>
         </div>
       )}
+      <ModalConfirmacao
+        aberto={confirmarExclusao}
+        titulo="Excluir usuário?"
+        texto={`O acesso de ${formData.nome || "este usuário"} será removido. Esta ação não pode ser desfeita.`}
+        confirmarLabel="Confirmar exclusão"
+        carregando={loadingExcluir}
+        onCancelar={() => setConfirmarExclusao(false)}
+        onConfirmar={handleExcluirUsuario}
+      />
     </main>
   );
 }

@@ -6,6 +6,7 @@ import { supabase } from "../../lib/supabase";
 import { apiFetch } from "../../lib/api";
 import { useMensagem } from "../../components/ToastErro";
 import DropdownCustomizado from "../../components/DropdownCustomizado";
+import ModalConfirmacao from "../../components/ModalConfirmacao";
 import { OPCOES_PERFIL, rotuloPerfil } from "../../lib/permissoes";
 
 type UsuarioMe = { permissoes?: { gerir_usuarios?: boolean } };
@@ -53,6 +54,7 @@ export default function NovoUsuarioPage() {
   const [confirmarSenha, setConfirmarSenha] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(true);
   const [salvando, setSalvando] = useState(false);
+  const [confirmarAdmin, setConfirmarAdmin] = useState(false);
   const [acessoCriado, setAcessoCriado] = useState<AcessoCriado | null>(null);
   const [copiado, setCopiado] = useState("");
   const [mensagem, setMensagem] = useMensagem();
@@ -135,13 +137,15 @@ export default function NovoUsuarioPage() {
       setMensagem({ tipo: "erro", texto: "A senha e a confirmação não coincidem." });
       return;
     }
-    if (
-      perfil === "ADMIN" &&
-      !window.confirm("Este acesso será administrador: poderá cadastrar usuários, clientes e o restante do estoque. Continuar?")
-    ) {
+    if (perfil === "ADMIN") {
+      setConfirmarAdmin(true);
       return;
     }
+    await gravarAcesso(nomeTrim, emailTrim);
+  }
 
+  async function gravarAcesso(nomeTrim: string, emailTrim: string) {
+    setConfirmarAdmin(false);
     setSalvando(true);
     setMensagem({ tipo: "", texto: "" });
     try {
@@ -363,6 +367,15 @@ export default function NovoUsuarioPage() {
           </button>
         </div>
       </form>
+      <ModalConfirmacao
+        aberto={confirmarAdmin}
+        titulo="Criar acesso de admin?"
+        texto="Este acesso será administrador: poderá cadastrar usuários, clientes e o restante do estoque."
+        confirmarLabel="Confirmar"
+        carregando={salvando}
+        onCancelar={() => setConfirmarAdmin(false)}
+        onConfirmar={() => gravarAcesso(nome.trim(), email.trim().toLowerCase())}
+      />
     </div>
   );
 }

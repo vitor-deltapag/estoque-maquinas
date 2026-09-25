@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiFetch } from "../../../lib/api";
 import { useMensagem } from "../../../components/ToastErro";
+import { usePodeAlterar } from "../../../lib/usePodeAlterar";
 
 export default function NovoDistribuidor() {
   const router = useRouter();
@@ -12,6 +13,11 @@ export default function NovoDistribuidor() {
   const [codigo, setCodigo] = useState("");
   const [loading, setLoading] = useState(false);
   const [mensagem, setMensagem] = useMensagem();
+  const { podeAlterar, pronto } = usePodeAlterar();
+
+  useEffect(() => {
+    if (pronto && !podeAlterar) router.replace("/distribuidores");
+  }, [pronto, podeAlterar, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

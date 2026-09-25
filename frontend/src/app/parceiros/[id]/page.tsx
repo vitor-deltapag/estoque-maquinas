@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiFetch } from "../../../lib/api";
 import { useMensagem } from "../../../components/ToastErro";
+import { usePodeAlterar } from "../../../lib/usePodeAlterar";
+import ModalConfirmacao from "../../../components/ModalConfirmacao";
 
 export default function DetalheParceiro() {
   const params = useParams();
@@ -17,7 +19,9 @@ export default function DetalheParceiro() {
     const [carregando, setCarregando] = useState(true);
     const [loadingSalvar, setLoadingSalvar] = useState(false);
     const [loadingExcluir, setLoadingExcluir] = useState(false);
+    const [confirmarExclusao, setConfirmarExclusao] = useState(false);
     const [mensagem, setMensagem] = useMensagem();
+    const { podeAlterar } = usePodeAlterar();
   
     useEffect(() => {
       async function carregar() {
@@ -67,19 +71,20 @@ export default function DetalheParceiro() {
     };
 
     const handleExcluir = async () => {
-      const confirmar = window.confirm(`Tem certeza que deseja remover o parceiro "${formData.nome}"?`);
-      if (!confirmar) return;
       setLoadingExcluir(true);
       setMensagem({ tipo: "", texto: "" });
       try {
         const res = await apiFetch(`/parceiros/${itemId}`, { method: "DELETE" });
         if (res.ok) {
+          setConfirmarExclusao(false);
           router.push("/parceiros");
           return;
         }
         const erro = await res.json();
+        setConfirmarExclusao(false);
         setMensagem({ tipo: "erro", texto: erro.detail || "Não foi possível excluir." });
       } catch {
+        setConfirmarExclusao(false);
         setMensagem({ tipo: "erro", texto: "Erro de conexão com o servidor." });
       } finally {
         setLoadingExcluir(false);
@@ -114,7 +119,7 @@ export default function DetalheParceiro() {
             </div>
           )}
   
-          <form onSubmit={handleSalvar} className="space-y-4 mb-8">
+          <form onSubmit={(e) => { if (!podeAlterar) { e.preventDefault(); return; } handleSalvar(e); }} className="space-y-4 mb-8">
             <div>
               <label className="block text-sm font-semibold mb-1 dark:text-gray-300">Razão Social *</label>
               <input required value={formData.nome} onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
@@ -130,10 +135,11 @@ export default function DetalheParceiro() {
               <input value={formData.mid} onChange={(e) => setFormData({ ...formData, mid: e.target.value })}
                 className="w-full border border-gray-300 rounded-lg p-2.5 text-black dark:bg-gray-900 dark:border-gray-700 dark:text-white" />
             </div>
+            {podeAlterar && (
             <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-4">
               <button
                 type="button"
-                onClick={handleExcluir}
+                onClick={() => setConfirmarExclusao(true)}
                 disabled={loadingExcluir || loadingSalvar}
                 className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 px-5 rounded-lg text-sm transition-colors disabled:opacity-50"
               >
@@ -143,6 +149,7 @@ export default function DetalheParceiro() {
                 {loadingSalvar ? "Salvando..." : "Salvar alterações"}
               </button>
             </div>
+            )}
           </form>
   
           <h2 className="text-lg font-bold mb-3 dark:text-gray-100">
@@ -166,6 +173,15 @@ export default function DetalheParceiro() {
             )}
           </div>
         </div>
+        <ModalConfirmacao
+          aberto={confirmarExclusao}
+          titulo="Excluir parceiro?"
+          texto={`O parceiro ${formData.nome || ""} será removido. Esta ação não pode ser desfeita.`}
+          confirmarLabel="Confirmar exclusão"
+          carregando={loadingExcluir}
+          onCancelar={() => setConfirmarExclusao(false)}
+          onConfirmar={handleExcluir}
+        />
       </main>
     );
   }

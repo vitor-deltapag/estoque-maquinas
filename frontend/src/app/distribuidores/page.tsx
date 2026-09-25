@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "../../lib/api";
 import { useMensagem } from "../../components/ToastErro";
+import { usePodeAlterar } from "../../lib/usePodeAlterar";
+import ModalConfirmacao from "../../components/ModalConfirmacao";
 
 export default function ListaDistribuidores() {
   const [distribuidores, setDistribuidores] = useState<any[]>([]);
@@ -12,7 +14,9 @@ export default function ListaDistribuidores() {
   const [modalAberto, setModalAberto] = useState(false);
   const [loadingSalvar, setLoadingSalvar] = useState(false);
   const [loadingExcluir, setLoadingExcluir] = useState(false);
+  const [confirmarExclusao, setConfirmarExclusao] = useState(false);
   const [mensagemModal, setMensagemModal] = useMensagem();
+  const { podeAlterar } = usePodeAlterar();
   const [formData, setFormData] = useState({
     id: "", nome: "", codigo: "", status: "",
   });
@@ -84,21 +88,22 @@ export default function ListaDistribuidores() {
   };
 
   const handleExcluir = async () => {
-    const confirmar = window.confirm(`Tem certeza absoluta que deseja remover o distribuidor "${formData.nome}"?`);
-    if (!confirmar) return;
     setLoadingExcluir(true);
     setMensagemModal({ tipo: "", texto: "" });
     try {
       const response = await apiFetch(`/fornecedores/${formData.id}`, { method: "DELETE" });
       if (response.ok) {
+        setConfirmarExclusao(false);
         setMensagemModal({ tipo: "sucesso", texto: "Distribuidor removido com sucesso!" });
         await carregar();
         setTimeout(() => setModalAberto(false), 1000);
       } else {
         const erro = await response.json();
+        setConfirmarExclusao(false);
         setMensagemModal({ tipo: "erro", texto: erro.detail || "Erro ao tentar excluir o distribuidor." });
       }
     } catch {
+      setConfirmarExclusao(false);
       setMensagemModal({ tipo: "erro", texto: "Erro de rede ao processar exclusão." });
     } finally {
       setLoadingExcluir(false);
@@ -120,12 +125,14 @@ export default function ListaDistribuidores() {
           <h1 className="text-3xl font-bold text-orange-600">Distribuidores</h1>
           <p className="text-sm text-gray-500 mt-1 font-medium">Cadastre e consulte os distribuidores do estoque.</p>
         </div>
+        {podeAlterar && (
         <Link
           href="/distribuidores/novo"
           className="w-full md:w-auto text-center bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2.5 px-5 rounded-lg text-sm shadow-sm transition-colors"
         >
           + Novo Distribuidor
         </Link>
+        )}
       </div>
 
       <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mb-8 relative dark:bg-gray-900 dark:border-gray-800 transition-colors">
@@ -192,7 +199,7 @@ export default function ListaDistribuidores() {
                 {mensagemModal.texto}
               </div>
             )}
-            <form onSubmit={handleSalvarEdicao} className="space-y-5">
+            <form onSubmit={(e) => { if (!podeAlterar) { e.preventDefault(); return; } handleSalvarEdicao(e); }} className="space-y-5">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Nome *</label>
                 <input
@@ -213,10 +220,11 @@ export default function ListaDistribuidores() {
                   className="w-full bg-white border border-gray-300 rounded-lg p-2.5 text-black font-semibold outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-900 dark:border-gray-700 dark:text-white transition-colors"
                 />
               </div>
+              {podeAlterar && (
               <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-6 border-t mt-4">
                 <button
                   type="button"
-                  onClick={handleExcluir}
+                  onClick={() => setConfirmarExclusao(true)}
                   disabled={loadingExcluir}
                   className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 px-5 rounded-lg text-sm transition-colors disabled:opacity-50"
                 >
@@ -230,10 +238,20 @@ export default function ListaDistribuidores() {
                   {loadingSalvar ? "Salvando..." : "Salvar Alterações"}
                 </button>
               </div>
+              )}
             </form>
           </div>
         </div>
       )}
+      <ModalConfirmacao
+        aberto={confirmarExclusao}
+        titulo="Excluir distribuidor?"
+        texto={`O distribuidor ${formData.nome || ""} será removido. Esta ação não pode ser desfeita.`}
+        confirmarLabel="Confirmar exclusão"
+        carregando={loadingExcluir}
+        onCancelar={() => setConfirmarExclusao(false)}
+        onConfirmar={handleExcluir}
+      />
     </main>
   );
 }

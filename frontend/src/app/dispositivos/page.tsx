@@ -9,6 +9,7 @@ import { classeCorModelo, classeMostradorEstado, classeMostradorModelo, modeloPo
 import { classeCorAquisicao, rotuloAquisicao } from "../../lib/aquisicao";
 import { filtrosDaUrl, queryFiltros } from "../../lib/filtroDispositivos";
 import MenuFiltroDispositivos from "../../components/MenuFiltroDispositivos";
+import ModalConfirmacao from "../../components/ModalConfirmacao";
 
 function estadoEspecial(estado: string) {
   return estado === "REPARO" || estado === "MAQUINA PERDIDA";
@@ -53,6 +54,7 @@ function GerenciamentoDispositivos() {
   const [clienteInativo, setClienteInativo] = useState(false);
   const [podeAlterar, setPodeAlterar] = useState(false);
   const [podeDesvincular, setPodeDesvincular] = useState(false);
+  const [confirmacao, setConfirmacao] = useState<null | "excluir" | "desvincular">(null);
   const modeloDaFicha = modeloPorSerial(formData.numero_serial);
 
   useEffect(() => {
@@ -266,20 +268,22 @@ function GerenciamentoDispositivos() {
   };
 
   const handleDesvincular = async () => {
-    if (!window.confirm(`Desvincular a máquina ${formData.numero_serial} do cliente?`)) return;
     setLoadingSalvar(true);
     setMensagemModal({ tipo: "", texto: "" });
     try {
       const response = await apiFetch(`/dispositivos/${formData.id}/desvincular`, { method: "POST" });
       if (response.ok) {
+        setConfirmacao(null);
         setMensagemModal({ tipo: "sucesso", texto: "Máquina desvinculada." });
         recarregarLista();
         setTimeout(() => setModalAberto(false), 1000);
       } else {
         const erro = await response.json().catch(() => null);
+        setConfirmacao(null);
         setMensagemModal({ tipo: "erro", texto: erro?.detail || "Não foi possível desvincular." });
       }
     } catch {
+      setConfirmacao(null);
       setMensagemModal({ tipo: "erro", texto: "Erro de conexão." });
     } finally {
       setLoadingSalvar(false);
@@ -288,9 +292,6 @@ function GerenciamentoDispositivos() {
 
   // 6. EXCLUI O DISPOSITIVO (DELETE)
   const handleExcluirDispositivo = async () => {
-    const confirmar = window.confirm(`Tem certeza absoluta que deseja remover a máquina com serial ${formData.numero_serial} do estoque?`);
-    if (!confirmar) return;
-
     setLoadingExcluir(true);
     setMensagemModal({ tipo: "", texto: "" });
 
@@ -300,6 +301,7 @@ function GerenciamentoDispositivos() {
       });
 
       if (response.ok) {
+        setConfirmacao(null);
         setMensagemModal({ tipo: "sucesso", texto: "Máquina removida com sucesso!" });
         setTermoBuscaReal(termoBuscaReal + " ");
         setTimeout(() => {
@@ -307,9 +309,11 @@ function GerenciamentoDispositivos() {
           setModalAberto(false);
         }, 1000);
       } else {
+        setConfirmacao(null);
         setMensagemModal({ tipo: "erro", texto: "Erro ao tentar excluir o dispositivo do banco." });
       }
     } catch (error) {
+      setConfirmacao(null);
       setMensagemModal({ tipo: "erro", texto: "Erro de rede ao processar exclusão." });
     } finally {
       setLoadingExcluir(false);
@@ -533,8 +537,8 @@ function GerenciamentoDispositivos() {
 
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Aquisição</label>
-                  <p className="w-full border border-gray-200 rounded-lg p-2.5 text-gray-900 font-semibold bg-gray-50 text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white">
-                    {rotuloAquisicao(formData.aquisicao) || "—"}
+                  <p className={`w-full border rounded-lg p-2.5 font-semibold text-sm ${classeCorAquisicao(formData.aquisicao)}`}>
+                    {rotuloAquisicao(formData.aquisicao)}
                   </p>
                   <p className="mt-1 text-xs text-gray-500">Definida no cadastro da máquina. Não é possível alterar.</p>
                 </div>
@@ -580,7 +584,7 @@ function GerenciamentoDispositivos() {
                 {podeAlterar && (
                 <button
                   type="button"
-                  onClick={handleExcluirDispositivo}
+                  onClick={() => setConfirmacao("excluir")}
                   disabled={loadingExcluir}
                   className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 px-5 rounded-lg text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
@@ -591,7 +595,7 @@ function GerenciamentoDispositivos() {
                 {podeDesvincular && formData.mid && (
                 <button
                   type="button"
-                  onClick={handleDesvincular}
+                  onClick={() => setConfirmacao("desvincular")}
                   disabled={loadingSalvar}
                   className="w-full sm:w-auto border border-orange-500 text-orange-700 dark:text-orange-300 font-semibold py-2.5 px-5 rounded-lg text-sm"
                 >
@@ -615,6 +619,19 @@ function GerenciamentoDispositivos() {
           </div>
         </div>
       )}
+      <ModalConfirmacao
+        aberto={confirmacao !== null}
+        titulo={confirmacao === "desvincular" ? "Desvincular máquina?" : "Excluir máquina?"}
+        texto={
+          confirmacao === "desvincular"
+            ? `A máquina ${formData.numero_serial || ""} sai do cliente e volta para o estoque.`
+            : `A máquina ${formData.numero_serial || ""} será removida do estoque. Esta ação não pode ser desfeita.`
+        }
+        confirmarLabel={confirmacao === "desvincular" ? "Confirmar desvínculo" : "Confirmar exclusão"}
+        carregando={confirmacao === "desvincular" ? loadingSalvar : loadingExcluir}
+        onCancelar={() => setConfirmacao(null)}
+        onConfirmar={confirmacao === "desvincular" ? handleDesvincular : handleExcluirDispositivo}
+      />
     </main>
   );
 }

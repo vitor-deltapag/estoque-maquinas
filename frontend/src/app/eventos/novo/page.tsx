@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiFetch } from "../../../lib/api";
+import { usePodeAlterar } from "../../../lib/usePodeAlterar";
 import { useMensagem } from "../../../components/ToastErro";
 
 function serialLimpo(valor: string) {
@@ -12,6 +13,7 @@ function serialLimpo(valor: string) {
 
 export default function NovoEvento() {
   const router = useRouter();
+  const { podeAlterar, pronto } = usePodeAlterar();
   const [nome, setNome] = useState("");
   const [mid, setMid] = useState("");
   const [dataInicio, setDataInicio] = useState("");
@@ -22,6 +24,10 @@ export default function NovoEvento() {
   const [loading, setLoading] = useState(false);
   const [mensagem, setMensagem] = useMensagem();
   const [nomeClienteVisual, setNomeClienteVisual] = useState("");
+
+  useEffect(() => {
+    if (pronto && !podeAlterar) router.replace("/eventos");
+  }, [pronto, podeAlterar, router]);
 
   useEffect(() => {
     if (!mid.trim()) {

@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "../../lib/api";
+import { usePodeAlterar } from "../../lib/usePodeAlterar";
 
 export default function ListaParceiros() {
   const [parceiros, setParceiros] = useState<any[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const { podeAlterar } = usePodeAlterar();
 
   useEffect(() => {
     async function carregar() {
@@ -43,12 +45,14 @@ export default function ListaParceiros() {
             Cadastre parceiros e veja as máquinas vinculadas. Os seriais só se alteram na aba Máquinas.
           </p>
         </div>
+        {podeAlterar && (
         <Link
           href="/parceiros/novo"
           className="w-full md:w-auto text-center bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2.5 px-5 rounded-lg text-sm shadow-sm transition-colors"
         >
           + Novo Parceiro
         </Link>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

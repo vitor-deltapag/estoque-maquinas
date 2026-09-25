@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "../../lib/api";
+import { usePodeAlterar } from "../../lib/usePodeAlterar";
 
 function formatarData(valor?: string | null) {
   if (!valor) return "—";
@@ -39,6 +40,7 @@ export default function ListaEventos() {
   const [eventos, setEventos] = useState<any[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [consultaFinalizados, setConsultaFinalizados] = useState(false);
+  const { podeAlterar } = usePodeAlterar();
 
   useEffect(() => {
     async function carregar() {
@@ -90,12 +92,14 @@ export default function ListaEventos() {
           >
             {consultaFinalizados ? "Voltar aos eventos" : "Eventos finalizados"}
           </button>
+          {podeAlterar && (
           <Link
             href="/eventos/novo"
             className="w-full md:w-auto text-center bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2.5 px-5 rounded-lg text-sm shadow-sm transition-colors"
           >
             + Novo Evento
           </Link>
+          )}
         </div>
       </div>
 

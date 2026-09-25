@@ -1,15 +1,21 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiFetch } from "../../../lib/api";
 import { useMensagem } from "../../../components/ToastErro";
+import { usePodeAlterar } from "../../../lib/usePodeAlterar";
 
 export default function NovoParceiro() {
   const router = useRouter();
   const [formData, setFormData] = useState({ nome: "", nome_fantasia: "", mid: "" });
   const [loading, setLoading] = useState(false);
   const [mensagem, setMensagem] = useMensagem();
+  const { podeAlterar, pronto } = usePodeAlterar();
+
+  useEffect(() => {
+    if (pronto && !podeAlterar) router.replace("/parceiros");
+  }, [pronto, podeAlterar, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
