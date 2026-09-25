@@ -131,7 +131,7 @@ O front **não** manda IDs de cliente/fornecedor/parceiro. Manda textos; a API r
 
 | Param | Default | Efeito |
 | --- | --- | --- |
-| search | — | serial ILIKE **ou** MID do cliente (outer join) |
+| search | — | cada palavra (separada por espaço) precisa aparecer no serial, MID, nome ou nome fantasia (ILIKE) |
 | page | 1 | |
 | limit | 20 | |
 | em_evento | — | filtra boolean exacto |
@@ -141,7 +141,7 @@ O front **não** manda IDs de cliente/fornecedor/parceiro. Manda textos; a API r
 | estado | — | igualdade exacta (`NO CLIENTE`, `ESTOQUE`, …) |
 | aquisicao | — | `COMPRADA` ou `ALUGADA`; inválida → 400 |
 
-Os params combinam em **AND**. Ordem `id DESC`. `selectinload` de `cliente_rel`, `fornecedor_rel`, `adquirente_rel`.
+Os params combinam em **AND**. Ordem `id DESC`. `selectinload` de `cliente_rel`, `fornecedor_rel`, `adquirente_rel`. O header `X-Total-Count` traz o total do filtro, antes da página.
 
 **200 item:** `id`, `modelo`, `numero_serial`, `estado`, `aquisicao`, `em_evento`, `data_chegada`, `data_ultima_atualizacao`, `cliente`, `fornecedor`, `adquirente` (ints), mais os três `*_rel` (objectos ou null).
 

@@ -19,6 +19,18 @@ def test_listar_e_buscar_dispositivos(client, as_comum, db_session):
 
     por_mid = client.get("/dispositivos?search=MIDX")
     assert len(por_mid.json()) == 1
+    assert por_mid.headers["x-total-count"] == "1"
+
+    por_nome = client.get("/dispositivos?search=Cliente 1")
+    assert len(por_nome.json()) == 1
+    assert por_nome.json()[0]["numero_serial"] == "ABC123"
+
+    cli_nome = seed_cliente(db_session, mid="MIDNOME", nome="Maria Aparecida Silva")
+    seed_dispositivo(db_session, serial="NOME1", cliente=cli_nome)
+    por_sobrenome = client.get("/dispositivos?search=Maria Silva")
+    assert [item["numero_serial"] for item in por_sobrenome.json()] == ["NOME1"]
+
+    assert client.get("/dispositivos").headers["x-total-count"] == "3"
 
 
 def test_dashboard(client, as_comum, db_session):

@@ -51,9 +51,9 @@ Estado inicial dos totais: zeros. `total_eventos_pendentes` alimenta a faixa. Li
 
 Envolvida em `Suspense` por causa de `useSearchParams`.
 
-Debounce busca 500 ms → `search` na query. `limit=20`. AbortController cancela o fetch anterior.
+Debounce busca 500 ms → `search` na query (serial, MID, nome ou nome fantasia). `limit=20`. A contagem usa o header `X-Total-Count` do filtro inteiro, não só a página. AbortController cancela o fetch anterior.
 
-Botão **Filtros** abre um menu (não vários dropdowns na barra). Critérios em AND, na URL: `modelo`, `estado`, `aquisicao`, `evento=true|false`, `parceiro=true|false`. O painel `?parceiro=true` continua a abrir a lista já filtrada. **Aplicar** grava a query; **Limpar** tira todos. O botão mostra `Filtros (N)` se houver activos. A busca SERIAL/MID fica fora do menu.
+Botão **Filtros** abre um menu (não vários dropdowns na barra). Critérios em AND, na URL: `modelo`, `estado`, `aquisicao`, `evento=true|false`, `parceiro=true|false`. O painel `?parceiro=true` continua a abrir a lista já filtrada. **Aplicar** grava a query; **Limpar** tira todos. O botão mostra `Filtros (N)` se houver activos. A busca por serial, MID ou nome fica fora do menu.
 
 Modal: mesmos dropdowns custom (hover laranja) de modelo/estado/parceiro. Serial no input vai a maiúsculas no `onChange` e no PUT. MID valida no servidor (500 ms). Se MID exacto: `✅ Nome` e estado `NO CLIENTE`; senão `⚠️ MID não cadastrado no sistema`. MID vazio: estado volta a `ESTOQUE`.
 

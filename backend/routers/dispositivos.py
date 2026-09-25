@@ -1,5 +1,5 @@
 from datetime import datetime, date
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_, func
@@ -146,6 +146,7 @@ def _serial_ja_existe(db: Session, serial: str, *, ignorar_id: Optional[int] = N
 
 @router.get("/dispositivos", response_model=List[schemas.DispositivoResponse])
 def listar_dispositivos(
+    response: Response,
     search: Optional[str] = None,
     page: int = 1,
     limit: int = 20,
@@ -156,19 +157,23 @@ def listar_dispositivos(
     estado: Optional[str] = None,
     aquisicao: Optional[str] = None,
     db: Session = Depends(get_db),
-    user: models.DadosUsuario = Depends(get_current_user)
+    user: models.DadosUsuario = Depends(get_current_user),
 ):
     # selectinload evita N+1 ao serializar cliente_rel / fornecedor_rel / adquirente_rel.
     query = db.query(models.Dispositivo).options(*_RELS_DISPOSITIVO)
 
-    if search:
+    if search and search.strip():
         query = query.outerjoin(models.Cliente, models.Dispositivo.cliente == models.Cliente.id)
-        query = query.filter(
-            or_(
-                models.Dispositivo.numero_serial.ilike(f"%{search}%"),
-                models.Cliente.mid.ilike(f"%{search}%")
+        for pedaco in search.split():
+            termo = f"%{pedaco}%"
+            query = query.filter(
+                or_(
+                    models.Dispositivo.numero_serial.ilike(termo),
+                    models.Cliente.mid.ilike(termo),
+                    models.Cliente.nome.ilike(termo),
+                    models.Cliente.nome_fantasia.ilike(termo),
+                )
             )
-        )
 
     modelo_n = empty_to_none(modelo)
     if modelo_n:
@@ -195,6 +200,8 @@ def listar_dispositivos(
     if adquirente_id is not None:
         query = query.filter(models.Dispositivo.adquirente == adquirente_id)
 
+    total = query.order_by(None).count()
+    response.headers["X-Total-Count"] = str(total)
     query = query.order_by(models.Dispositivo.id.desc())
     offset = (page - 1) * limit
     return query.offset(offset).limit(limit).all()

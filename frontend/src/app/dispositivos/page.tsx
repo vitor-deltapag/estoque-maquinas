@@ -30,6 +30,7 @@ function GerenciamentoDispositivos() {
   const [termoBuscaReal, setTermoBuscaReal] = useState("");
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [temMaisPaginas, setTemMaisPaginas] = useState(true);
+  const [totalMaquinas, setTotalMaquinas] = useState<number | null>(null);
   const LIMITE_POR_PAGINA = 20;
 
   // Estados de Loading
@@ -103,7 +104,9 @@ function GerenciamentoDispositivos() {
         if (ac.signal.aborted) return;
         if (response.ok) {
           const dados = await response.json();
+          const total = Number(response.headers.get("X-Total-Count"));
           setDispositivos(Array.isArray(dados) ? dados : []);
+          setTotalMaquinas(Number.isFinite(total) ? total : (Array.isArray(dados) ? dados.length : 0));
           setTemMaisPaginas(dados.length === LIMITE_POR_PAGINA);
         }
       } catch (error) {
@@ -338,6 +341,11 @@ function GerenciamentoDispositivos() {
         <div>
           <h1 className="text-3xl font-bold text-orange-600">Gerenciamento de Máquinas</h1>
           <p className="text-sm text-gray-900 mt-1 font-medium dark:text-white transition-colors">Clique sobre qualquer card de máquina para visualizar a ficha completa ou realizar alterações.</p>
+          {totalMaquinas !== null && (
+            <p className="text-sm font-bold text-orange-600 mt-2">
+              {totalMaquinas} máquina{totalMaquinas === 1 ? "" : "s"}
+            </p>
+          )}
         </div>
 
         {podeAlterar && (
@@ -358,10 +366,10 @@ function GerenciamentoDispositivos() {
               type="text"
               value={buscaSerial}
               onChange={(e) => setBuscaSerial(e.target.value)}
-              placeholder="  Digite parte do Número Serial ou o MID para filtrar os cards instantaneamente..."
+              placeholder="  Serial, MID ou nome do cliente..."
               className="w-full bg-gray-50 border border-gray-300 rounded-lg py-3 px-4 pl-24 text-gray-900 font-semibold outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all placeholder-gray-400 dark:bg-gray-950 dark:border-gray-700 dark:text-white dark:focus:bg-gray-950"
             />
-            <span className="absolute left-2 top-3.5 text-gray-500 font-bold text-sm font-mono pointer-events-none">SERIAL/MID:</span>
+            <span className="absolute left-4 top-3.5 text-gray-500 font-bold text-sm font-mono pointer-events-none">BUSCA:</span>
 
             {atualizandoLista && (
               <div className="absolute right-4 top-3.5 flex space-x-1">
