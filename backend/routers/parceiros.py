@@ -1,6 +1,8 @@
+from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_, func
@@ -9,6 +11,7 @@ from database import get_db
 from deps import exigir_permissao, get_current_user
 from helpers import empty_to_none
 from log import logger
+from movimentacoes import registrar
 import models
 import schemas
 
@@ -37,6 +40,31 @@ def _resposta(
         created_at=item.created_at,
         qtd_maquinas=len(maquinas) if qtd_maquinas is None else qtd_maquinas,
         dispositivos=maquinas,
+    )
+
+
+class SerialParceiro(BaseModel):
+    numero_serial: str
+
+
+def _devolver_ao_estoque(db: Session, maquina: models.Dispositivo, user) -> None:
+    if maquina.cliente:
+        registrar(db, tipo="DESVINCULO_CLIENTE", dispositivo=maquina, cliente_id=maquina.cliente, usuario=user)
+    maquina.cliente = None
+    maquina.fornecedor = None
+    maquina.adquirente = None
+    maquina.estado = "ESTOQUE"
+    maquina.data_ultima_atualizacao = datetime.now()
+
+
+def _maquina_por_serial(db: Session, serial: str) -> models.Dispositivo | None:
+    limpo = (serial or "").strip().upper()
+    if not limpo:
+        return None
+    return (
+        db.query(models.Dispositivo)
+        .filter(func.upper(models.Dispositivo.numero_serial) == limpo)
+        .first()
     )
 
 
@@ -163,12 +191,54 @@ def deletar_parceiro(
     if not item:
         raise HTTPException(status_code=404, detail="Parceiro não encontrado")
 
-    como_cliente = db.query(models.Dispositivo).filter(models.Dispositivo.cliente == item.id).first()
-    como_parceiro = db.query(models.Dispositivo).filter(models.Dispositivo.adquirente == item.id).first()
-    if como_cliente or como_parceiro:
-        raise HTTPException(
-            status_code=400,
-            detail="Não é possível excluir um parceiro que possui máquinas vinculadas.",
-        )
+    maquinas = (
+        db.query(models.Dispositivo)
+        .filter(or_(models.Dispositivo.adquirente == item.id, models.Dispositivo.cliente == item.id))
+        .all()
+    )
+    for maquina in maquinas:
+        _devolver_ao_estoque(db, maquina, user)
     db.delete(item)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        logger.warning("IntegrityError ao excluir parceiro")
+        raise HTTPException(status_code=400, detail="Não é possível excluir um parceiro que possui eventos.")
+
+
+@router.post("/parceiros/{item_id}/vincular", response_model=schemas.ParceiroResponse)
+def vincular_maquina(
+    item_id: int,
+    payload: SerialParceiro,
+    db: Session = Depends(get_db),
+    user: models.DadosUsuario = Depends(exigir_permissao("alterar_estoque")),
+):
+    item = _parceiro_por_id(db, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Parceiro não encontrado")
+    maquina = _maquina_por_serial(db, payload.numero_serial)
+    if not maquina:
+        raise HTTPException(status_code=400, detail="O serial não está cadastrado no sistema.")
+    maquina.adquirente = item.id
+    maquina.data_ultima_atualizacao = datetime.now()
     db.commit()
+    return _resposta(_parceiro_por_id(db, item_id))
+
+
+@router.post("/parceiros/{item_id}/desvincular", response_model=schemas.ParceiroResponse)
+def desvincular_maquina_parceiro(
+    item_id: int,
+    payload: SerialParceiro,
+    db: Session = Depends(get_db),
+    user: models.DadosUsuario = Depends(exigir_permissao("alterar_estoque")),
+):
+    item = _parceiro_por_id(db, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Parceiro não encontrado")
+    maquina = _maquina_por_serial(db, payload.numero_serial)
+    if not maquina or maquina.adquirente != item.id:
+        raise HTTPException(status_code=400, detail="Esta máquina não está vinculada a este parceiro.")
+    _devolver_ao_estoque(db, maquina, user)
+    db.commit()
+    return _resposta(_parceiro_por_id(db, item_id))

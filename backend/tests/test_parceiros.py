@@ -28,7 +28,30 @@ def test_crud_parceiro_e_maquinas_somente_leitura(client, as_comum, db_session):
     assert client.get(f"/parceiros/{pid}").json()["dispositivos"][0]["numero_serial"] == "PAR-SN1"
 
     apagar = client.delete(f"/parceiros/{pid}")
-    assert apagar.status_code == 400
+    assert apagar.status_code == 204
+    maquina = client.get("/dispositivos?search=PAR-SN1").json()[0]
+    assert maquina["estado"] == "ESTOQUE"
+    assert maquina["adquirente"] is None
+
+
+def test_vincular_e_desvincular_maquina_do_parceiro(client, as_comum, db_session):
+    parceiro = client.post("/parceiros", json={"nome": "Stone", "mid": "ST1"}).json()
+    seed_dispositivo(db_session, serial="LIG1", estado="NO CLIENTE")
+    pid = parceiro["id"]
+
+    ligado = client.post(f"/parceiros/{pid}/vincular", json={"numero_serial": "lig1"})
+    assert ligado.status_code == 200
+    assert ligado.json()["qtd_maquinas"] == 1
+    card = client.get("/dispositivos?search=LIG1").json()[0]
+    assert card["adquirente"] == pid
+    assert card["estado"] == "NO CLIENTE"
+
+    solto = client.post(f"/parceiros/{pid}/desvincular", json={"numero_serial": "LIG1"})
+    assert solto.status_code == 200
+    assert solto.json()["qtd_maquinas"] == 0
+    card = client.get("/dispositivos?search=LIG1").json()[0]
+    assert card["adquirente"] is None
+    assert card["estado"] == "ESTOQUE"
 
 
 def test_parceiro_cliente_comum_nao_aparece(client, as_comum, db_session):

@@ -55,6 +55,7 @@ function GerenciamentoDispositivos() {
   const [clienteInativo, setClienteInativo] = useState(false);
   const [podeAlterar, setPodeAlterar] = useState(false);
   const [podeDesvincular, setPodeDesvincular] = useState(false);
+  const [listaParceiros, setListaParceiros] = useState<any[]>([]);
   const [confirmacao, setConfirmacao] = useState<null | "excluir" | "desvincular">(null);
   const modeloDaFicha = modeloPorSerial(formData.numero_serial);
 
@@ -65,6 +66,11 @@ function GerenciamentoDispositivos() {
         const me = await res.json();
         setPodeAlterar(Boolean(me.permissoes?.alterar_estoque));
         setPodeDesvincular(Boolean(me.permissoes?.desvincular_maquina));
+      })
+      .catch(console.error);
+    apiFetch("/parceiros", { cache: "no-store" })
+      .then(async (res) => {
+        if (res.ok) setListaParceiros(await res.json());
       })
       .catch(console.error);
   }, []);
@@ -268,6 +274,62 @@ function GerenciamentoDispositivos() {
       recarregarLista();
     }
     setLoadingEstado(null);
+  };
+
+  const vincularParceiroDaFicha = async (nome: string) => {
+    if (!nome || !formData.numero_serial) return;
+    const parceiro = listaParceiros.find((item) => item.nome === nome);
+    if (!parceiro) return;
+    setLoadingSalvar(true);
+    setMensagemModal({ tipo: "", texto: "" });
+    try {
+      const res = await apiFetch(`/parceiros/${parceiro.id}/vincular`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ numero_serial: formData.numero_serial }),
+      });
+      if (!res.ok) {
+        const erro = await res.json().catch(() => null);
+        setMensagemModal({ tipo: "erro", texto: erro?.detail || "Não foi possível vincular o parceiro." });
+        return;
+      }
+      setIsParceiro(true);
+      setFormData((prev) => ({ ...prev, adquirente_nome: nome }));
+      recarregarLista();
+      setMensagemModal({ tipo: "sucesso", texto: "Parceiro vinculado. O card da máquina foi atualizado." });
+    } catch {
+      setMensagemModal({ tipo: "erro", texto: "Erro de conexão." });
+    } finally {
+      setLoadingSalvar(false);
+    }
+  };
+
+  const desvincularParceiroDaFicha = async () => {
+    const parceiro = listaParceiros.find((item) => item.nome === formData.adquirente_nome);
+    if (!parceiro || !formData.numero_serial) return;
+    setLoadingSalvar(true);
+    setMensagemModal({ tipo: "", texto: "" });
+    try {
+      const res = await apiFetch(`/parceiros/${parceiro.id}/desvincular`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ numero_serial: formData.numero_serial }),
+      });
+      if (!res.ok) {
+        const erro = await res.json().catch(() => null);
+        setMensagemModal({ tipo: "erro", texto: erro?.detail || "Não foi possível desvincular o parceiro." });
+        return;
+      }
+      setIsParceiro(false);
+      setFormData((prev) => ({ ...prev, adquirente_nome: "", estado: "ESTOQUE", mid: "", fornecedor_nome: "" }));
+      setMidOriginal("");
+      recarregarLista();
+      setMensagemModal({ tipo: "sucesso", texto: "Máquina desvinculada e devolvida ao estoque." });
+    } catch {
+      setMensagemModal({ tipo: "erro", texto: "Erro de conexão." });
+    } finally {
+      setLoadingSalvar(false);
+    }
   };
 
   const handleDesvincular = async () => {
@@ -573,10 +635,38 @@ function GerenciamentoDispositivos() {
               <div className="border-t pt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Máquina de parceiro</label>
-                  <p className="w-full border border-gray-200 rounded-lg p-2.5 text-gray-900 font-semibold bg-gray-50 text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white">
-                    {isParceiro ? (formData.adquirente_nome || "Sim") : "Não"}
-                  </p>
-                  <p className="mt-1 text-xs text-gray-500">Definida no cadastro da máquina. Não é possível alterar.</p>
+                  {podeAlterar ? (
+                    <div className="space-y-2">
+                      <select
+                        value={formData.adquirente_nome || ""}
+                        onChange={(e) => {
+                          if (!e.target.value) desvincularParceiroDaFicha();
+                          else vincularParceiroDaFicha(e.target.value);
+                        }}
+                        className="w-full border border-gray-300 rounded-lg p-2.5 text-gray-900 font-semibold text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                      >
+                        <option value="">Sem parceiro</option>
+                        {listaParceiros.map((item) => (
+                          <option key={item.id} value={item.nome}>{item.nome}</option>
+                        ))}
+                      </select>
+                      {isParceiro && (
+                        <button
+                          type="button"
+                          onClick={desvincularParceiroDaFicha}
+                          disabled={loadingSalvar}
+                          className="text-sm font-semibold text-orange-700 dark:text-orange-300"
+                        >
+                          Desvincular e voltar ao estoque
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="w-full border border-gray-200 rounded-lg p-2.5 text-gray-900 font-semibold bg-gray-50 text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white">
+                      {isParceiro ? (formData.adquirente_nome || "Sim") : "Não"}
+                    </p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">O card da lista mostra o parceiro assim que o vínculo é salvo.</p>
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1.5 dark:text-gray-300 transition-colors">Em evento</label>

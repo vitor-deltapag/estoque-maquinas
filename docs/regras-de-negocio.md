@@ -49,7 +49,7 @@ Sem regra extra na API além de 404. Linhas `evento_dispositivo` dessa máquina 
 | MID duplicado (não nulo) | 400 `MID já cadastrado.` |
 | MID `""` | Vira `NULL` |
 | `parceiro` omitido no create | `false` |
-| DELETE com máquinas em `cliente` ou `adquirente` | 400 vínculo |
+| DELETE com máquinas em `cliente` | 400 vínculo |
 | Desmarcar parceiro com máquinas ainda apontando `adquirente` | PUT **permite**; as máquinas continuam com o id até alguém limpar o dropdown na ficha |
 | `status` no POST/PUT do estoque | Ignorado. Só a sincronização Movingpay grava (`ATIVO` ou outro: BLOQUEADO, ANALISE, DOCUMENTO_PENDENTE, DESCREDENCIADO). A tela mostra Ativo ou Inativo, sem edição |
 
@@ -60,7 +60,8 @@ Sem regra extra na API além de 404. Linhas `evento_dispositivo` dessa máquina 
 | POST | sempre `parceiro=true` |
 | GET `/{id}` de cliente sem a tag | 404 |
 | PUT | não desmarca a tag; não altera serial |
-| DELETE com máquina em `cliente` ou `adquirente` | 400 |
+| DELETE | Máquinas dele voltam ao estoque e o parceiro é apagado. 400 se houver evento |
+| Vincular / desvincular serial | Vincular só grava o parceiro. Desvincular devolve a máquina ao estoque |
 
 ## Fornecedor
 

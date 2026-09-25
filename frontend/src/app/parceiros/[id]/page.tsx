@@ -20,6 +20,9 @@ export default function DetalheParceiro() {
     const [loadingSalvar, setLoadingSalvar] = useState(false);
     const [loadingExcluir, setLoadingExcluir] = useState(false);
     const [confirmarExclusao, setConfirmarExclusao] = useState(false);
+    const [serialNovo, setSerialNovo] = useState("");
+    const [serialSoltar, setSerialSoltar] = useState("");
+    const [vinculando, setVinculando] = useState(false);
     const [mensagem, setMensagem] = useMensagem();
     const { podeAlterar } = usePodeAlterar();
   
@@ -67,6 +70,66 @@ export default function DetalheParceiro() {
         }
       } finally {
         setLoadingSalvar(false);
+      }
+    };
+
+    const aplicarParceiro = (dados: any) => {
+      setParceiro(dados);
+      setFormData({
+        nome: dados.nome || "",
+        nome_fantasia: dados.nome_fantasia || "",
+        mid: dados.mid || "",
+      });
+    };
+
+    const vincularSerial = async () => {
+      const serial = serialNovo.trim();
+      if (!serial) return;
+      setVinculando(true);
+      setMensagem({ tipo: "", texto: "" });
+      try {
+        const res = await apiFetch(`/parceiros/${itemId}/vincular`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ numero_serial: serial }),
+        });
+        const corpo = await res.json().catch(() => null);
+        if (!res.ok) {
+          setMensagem({ tipo: "erro", texto: corpo?.detail || "Não foi possível vincular." });
+          return;
+        }
+        aplicarParceiro(corpo);
+        setSerialNovo("");
+        setMensagem({ tipo: "sucesso", texto: "Máquina vinculada. O card em Máquinas já mostra este parceiro." });
+      } catch {
+        setMensagem({ tipo: "erro", texto: "Erro de conexão." });
+      } finally {
+        setVinculando(false);
+      }
+    };
+
+    const desvincularSerial = async () => {
+      if (!serialSoltar) return;
+      setVinculando(true);
+      setMensagem({ tipo: "", texto: "" });
+      try {
+        const res = await apiFetch(`/parceiros/${itemId}/desvincular`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ numero_serial: serialSoltar }),
+        });
+        const corpo = await res.json().catch(() => null);
+        if (!res.ok) {
+          setMensagem({ tipo: "erro", texto: corpo?.detail || "Não foi possível desvincular." });
+          return;
+        }
+        aplicarParceiro(corpo);
+        setSerialSoltar("");
+        setMensagem({ tipo: "sucesso", texto: "Máquina desvinculada e devolvida ao estoque." });
+      } catch {
+        setMensagem({ tipo: "erro", texto: "Erro de conexão." });
+      } finally {
+        setVinculando(false);
       }
     };
 
@@ -155,6 +218,24 @@ export default function DetalheParceiro() {
           <h2 className="text-lg font-bold mb-3 dark:text-gray-100">
             Máquinas vinculadas ({parceiro.dispositivos?.length || 0})
           </h2>
+          {podeAlterar && (
+            <div className="flex flex-col sm:flex-row gap-2 mb-4">
+              <input
+                value={serialNovo}
+                onChange={(e) => setSerialNovo(e.target.value.toUpperCase())}
+                placeholder="Serial da máquina"
+                className="flex-1 border border-gray-300 rounded-lg p-2.5 text-black font-mono dark:bg-gray-900 dark:border-gray-700 dark:text-white"
+              />
+              <button
+                type="button"
+                onClick={vincularSerial}
+                disabled={vinculando || !serialNovo.trim()}
+                className="bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2.5 px-5 rounded-lg text-sm disabled:opacity-50"
+              >
+                Vincular
+              </button>
+            </div>
+          )}
           <div className="space-y-2">
             {(parceiro.dispositivos || []).length === 0 ? (
               <p className="text-sm text-gray-400">Nenhuma máquina vinculada a este parceiro.</p>
@@ -165,9 +246,20 @@ export default function DetalheParceiro() {
                     <p className="font-bold text-gray-900 dark:text-white">{maq.numero_serial}</p>
                     <p className="text-xs text-gray-500">{maq.modelo || "Sem modelo"} · {maq.estado || "—"}</p>
                   </div>
-                  <span className="text-xs font-bold text-gray-500">
-                    {maq.em_evento ? "Em evento" : "Fora de evento"}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-gray-500">
+                      {maq.em_evento ? "Em evento" : "Fora de evento"}
+                    </span>
+                    {podeAlterar && (
+                      <button
+                        type="button"
+                        onClick={() => setSerialSoltar(maq.numero_serial)}
+                        className="text-xs font-bold text-orange-700 dark:text-orange-300"
+                      >
+                        Desvincular
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))
             )}
@@ -176,11 +268,20 @@ export default function DetalheParceiro() {
         <ModalConfirmacao
           aberto={confirmarExclusao}
           titulo="Excluir parceiro?"
-          texto={`O parceiro ${formData.nome || ""} será removido. Esta ação não pode ser desfeita.`}
+          texto={`O parceiro ${formData.nome || ""} será removido. As máquinas dele voltam para o estoque.`}
           confirmarLabel="Confirmar exclusão"
           carregando={loadingExcluir}
           onCancelar={() => setConfirmarExclusao(false)}
           onConfirmar={handleExcluir}
+        />
+        <ModalConfirmacao
+          aberto={Boolean(serialSoltar)}
+          titulo="Desvincular máquina?"
+          texto={`A máquina ${serialSoltar} sai deste parceiro e volta para o estoque.`}
+          confirmarLabel="Confirmar desvínculo"
+          carregando={vinculando}
+          onCancelar={() => setSerialSoltar("")}
+          onConfirmar={desvincularSerial}
         />
       </main>
     );

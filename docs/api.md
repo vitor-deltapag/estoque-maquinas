@@ -107,7 +107,7 @@ Só `nome`, `nome_fantasia`, `mid`. Mantém `parceiro=true`. 400 MID duplicado.
 
 ### DELETE `/parceiros/{id}` → 204
 
-400 `Não é possível excluir um parceiro que possui máquinas vinculadas.` se houver máquina como `cliente` (MID) **ou** como `adquirente`.
+DELETE devolve as máquinas do parceiro ao estoque (limpa MID, distribuidor e parceiro, estado `ESTOQUE`) e apaga o parceiro. 400 se ele ainda tiver evento. `POST /parceiros/{id}/vincular` e `POST /parceiros/{id}/desvincular` recebem `{ "numero_serial" }`. Vincular só grava o parceiro. Desvincular devolve aquela máquina ao estoque.
 
 ---
 
